@@ -4,20 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WWT Warehouse Monitor</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #080c0f;
     --surface: #0d1318;
     --surface2: #111920;
-    --border: #1e2d35;
+    --border: #1a2830;
+    --border-light: #243540;
     --accent: #00e5ff;
     --accent2: #ff6b35;
     --accent3: #7fff6b;
     --text: #e8f4f8;
     --muted: #5a7a85;
+    --dim: #3a5560;
     --mono: 'Space Mono', monospace;
     --sans: 'Syne', sans-serif;
+    --tech: 'Share Tech Mono', monospace;
+    --sidebar-w: 220px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -30,505 +34,888 @@
     min-height: 100vh;
   }
 
+  /* SUBTLE GRID BG */
   body::before {
     content: '';
     position: fixed; inset: 0;
     background-image:
-      linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
-    background-size: 40px 40px;
+      linear-gradient(rgba(0,229,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.018) 1px, transparent 1px);
+    background-size: 50px 50px;
     pointer-events: none; z-index: 0;
   }
 
-  /* LOADER */
+  /* SCANLINES */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.015) 3px, rgba(0,0,0,0.015) 6px);
+    pointer-events: none; z-index: 9998;
+  }
+
+  /* ===================== LOADER ===================== */
   #loader {
     position: fixed; inset: 0;
     background: var(--bg);
     z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2rem;
-    transition: opacity 0.5s ease, visibility 0.5s ease;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.5rem;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
   }
-  #loader.hidden { opacity: 0; visibility: hidden; }
-  .loader-logo { font-family: var(--mono); font-size: 1rem; letter-spacing: 0.3em; color: var(--accent); }
-  .loader-bar-wrap { width: 280px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
-  .loader-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: loadBar 1.6s cubic-bezier(0.4,0,0.2,1) forwards; }
-  .loader-status { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; }
+  #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .loader-logo {
+    font-family: var(--mono); font-size: 0.9rem;
+    letter-spacing: 0.5em; color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,229,255,0.3);
+  }
+  .loader-bar-wrap { width: 240px; height: 1px; background: var(--border); overflow: hidden; }
+  .loader-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    box-shadow: 0 0 12px var(--accent);
+    animation: loadBar 1.8s cubic-bezier(0.4,0,0.2,1) forwards;
+  }
   @keyframes loadBar { 0%{width:0%} 30%{width:35%} 60%{width:72%} 85%{width:90%} 100%{width:100%} }
+  .loader-lines {
+    font-family: var(--tech); font-size: 0.6rem;
+    color: var(--muted); opacity: 0.5;
+    text-align: left; line-height: 1.9;
+    max-width: 300px;
+  }
 
-  /* NAV */
-  nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    padding: 1rem 2rem;
-    display: flex; align-items: center; justify-content: space-between;
-    background: rgba(8,12,15,0.9); backdrop-filter: blur(12px);
+  /* ===================== SIDEBAR ===================== */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    z-index: 100;
+    display: flex; flex-direction: column;
+    padding: 0;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-header {
+    padding: 1.5rem 1.5rem 1.2rem;
     border-bottom: 1px solid var(--border);
   }
-  .nav-logo { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); letter-spacing: 0.15em; }
-  .nav-logo span { color: var(--muted); }
-  .nav-right { display: flex; align-items: center; gap: 1.5rem; }
-  .connection-dot {
+  .sidebar-logo {
+    font-family: var(--mono); font-size: 0.7rem;
+    color: var(--accent); letter-spacing: 0.2em;
+    text-shadow: 0 0 10px rgba(0,229,255,0.2);
+    line-height: 1.6;
+  }
+  .sidebar-logo span { color: var(--dim); }
+  .sidebar-version {
+    font-family: var(--tech); font-size: 0.5rem;
+    color: var(--dim); letter-spacing: 0.1em; margin-top: 0.3rem;
+  }
+
+  .sidebar-nav {
+    flex: 1; padding: 1rem 0;
+    display: flex; flex-direction: column; gap: 0.15rem;
+  }
+
+  .nav-section-label {
+    font-family: var(--tech); font-size: 0.5rem;
+    color: var(--dim); letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 1rem 1.5rem 0.5rem;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 0.8rem;
+    padding: 0.7rem 1.5rem;
+    font-family: var(--tech); font-size: 0.7rem;
+    color: var(--muted);
+    cursor: pointer; border: none; background: none;
+    text-align: left; width: 100%;
+    transition: all 0.2s ease;
+    position: relative;
+    letter-spacing: 0.03em;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(0,229,255,0.03); }
+  .nav-item.active {
+    color: var(--accent);
+    background: rgba(0,229,255,0.05);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: var(--accent);
+    box-shadow: 0 0 8px rgba(0,229,255,0.4);
+  }
+  .nav-icon {
+    font-family: var(--mono); font-size: 0.65rem;
+    width: 18px; text-align: center; opacity: 0.7;
+  }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  .sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .conn-status {
     display: flex; align-items: center; gap: 0.5rem;
-    font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+    font-family: var(--tech); font-size: 0.6rem; color: var(--muted);
   }
   .dot-live {
-    width: 6px; height: 6px; border-radius: 50%;
+    width: 5px; height: 5px; border-radius: 50%;
     background: var(--accent3);
     box-shadow: 0 0 6px var(--accent3);
     animation: pulse-dot 2s ease-in-out infinite;
   }
   .dot-live.offline { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: none; }
-  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .nav-time { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
-
-  /* LAYOUT */
-  .dashboard {
-    position: relative; z-index: 1;
-    padding: 5.5rem 2rem 2rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto;
-    gap: 1rem;
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .sidebar-clock {
+    font-family: var(--tech); font-size: 0.6rem; color: var(--dim);
   }
 
-  /* CARDS */
+  /* Mobile hamburger */
+  .mobile-toggle {
+    display: none;
+    position: fixed; top: 1rem; left: 1rem; z-index: 200;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--accent); font-family: var(--mono); font-size: 1rem;
+    padding: 0.5rem 0.7rem; cursor: pointer;
+  }
+
+  /* ===================== MAIN ===================== */
+  .main {
+    margin-left: var(--sidebar-w);
+    position: relative; z-index: 1;
+    min-height: 100vh;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    padding: 2rem 3rem 0;
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .page-title {
+    font-family: var(--sans); font-size: 1.3rem;
+    font-weight: 600; color: var(--text);
+    letter-spacing: 0.02em;
+  }
+  .page-subtitle {
+    font-family: var(--tech); font-size: 0.65rem;
+    color: var(--dim); margin-top: 0.3rem;
+    letter-spacing: 0.05em;
+  }
+  .topbar-right {
+    font-family: var(--tech); font-size: 0.6rem;
+    color: var(--dim); text-align: right;
+  }
+
+  /* CONTENT AREA */
+  .content {
+    padding: 2rem 3rem 3rem;
+  }
+
+  /* VIEW PANELS */
+  .view-panel {
+    display: none;
+    animation: fadeUp 0.3s ease both;
+  }
+  .view-panel.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ===================== STAT STRIPS ===================== */
+  .stat-strip {
+    display: flex; gap: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+  }
+  .stat-block {}
+  .stat-num {
+    font-family: var(--mono); font-size: 1.8rem; font-weight: 700;
+    color: var(--accent); line-height: 1;
+  }
+  .stat-num.warn { color: var(--accent2); }
+  .stat-num.ok { color: var(--accent3); }
+  .stat-lbl {
+    font-family: var(--tech); font-size: 0.6rem;
+    color: var(--muted); margin-top: 0.4rem;
+    letter-spacing: 0.05em;
+  }
+
+  /* ===================== SECTION ===================== */
+  .section {
+    margin-bottom: 2.5rem;
+  }
+  .section-label {
+    font-family: var(--mono); font-size: 0.55rem;
+    letter-spacing: 0.25em; color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .section-label .tag {
+    font-family: var(--tech); font-size: 0.5rem;
+    color: var(--muted); letter-spacing: 0.08em;
+    background: rgba(90,122,133,0.08);
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--border);
+    margin-left: auto;
+  }
+
+  /* ===================== CARDS ===================== */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    padding: 1.5rem;
+    padding: 1.5rem 1.8rem;
     position: relative;
-    overflow: hidden;
+    transition: border-color 0.3s ease;
   }
-  .card-label {
+  .card:hover { border-color: var(--border-light); }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.2rem;
+  }
+  .card-title {
     font-family: var(--mono); font-size: 0.6rem;
     letter-spacing: 0.2em; color: var(--accent);
-    text-transform: uppercase; margin-bottom: 1rem;
-    display: flex; align-items: center; justify-content: space-between;
+    text-transform: uppercase;
   }
-  .card-label .refresh-tag {
-    color: var(--muted); font-size: 0.55rem; letter-spacing: 0.1em;
+  .card-tag {
+    font-family: var(--tech); font-size: 0.5rem;
+    color: var(--dim); letter-spacing: 0.08em;
   }
-
-  /* STAT ROW */
-  .stat-row {
-    grid-column: 1 / -1;
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
-  }
-  .stat-card {
-    background: var(--surface); border: 1px solid var(--border);
-    padding: 1.5rem; position: relative; overflow: hidden;
-  }
-  .stat-card::after {
-    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-    background: var(--accent); transform: scaleX(0); transform-origin: left;
-    transition: transform 0.5s ease;
-  }
-  .stat-card.updated::after { transform: scaleX(1); }
-  .stat-value {
-    font-family: var(--mono); font-size: 2.2rem; font-weight: 700;
-    color: var(--accent); line-height: 1;
-  }
-  .stat-value.warn { color: var(--accent2); }
-  .stat-label-sm {
-    font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.15em;
-    color: var(--muted); margin-top: 0.5rem; text-transform: uppercase;
+  .card-desc {
+    font-family: var(--tech); font-size: 0.65rem;
+    color: var(--muted); line-height: 1.7;
+    margin-bottom: 1.2rem;
   }
 
-  /* WORK AREA */
-  .work-area-card { grid-column: 1 / 3; }
+  /* TWO COLUMN */
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+  }
+
+  /* ===================== WORK ITEMS ===================== */
   .work-items { display: flex; flex-direction: column; gap: 0.5rem; }
   .work-item {
     display: grid; grid-template-columns: 1fr auto auto;
-    align-items: center; gap: 1rem;
-    padding: 0.8rem 1rem;
+    align-items: center; gap: 1.5rem;
+    padding: 1rem 1.2rem;
     background: var(--bg); border: 1px solid var(--border);
     font-family: var(--mono); font-size: 0.7rem;
+    transition: border-color 0.2s;
   }
-  .work-item.overdue { border-color: var(--accent2); }
+  .work-item:hover { border-color: var(--border-light); }
+  .work-item.overdue { border-color: var(--accent2); background: rgba(255,107,53,0.015); }
   .work-item .item-id { color: var(--accent); font-weight: 700; }
-  .work-item .item-desc { color: var(--muted); font-size: 0.65rem; margin-top: 0.1rem; }
+  .work-item .item-desc { color: var(--muted); font-size: 0.6rem; margin-top: 0.2rem; font-family: var(--tech); }
   .timer {
-    font-size: 1rem; font-weight: 700; font-family: var(--mono);
+    font-size: 1.1rem; font-weight: 700; font-family: var(--mono);
     color: var(--accent3); white-space: nowrap;
   }
-  .timer.warn { color: var(--accent2); }
+  .timer.warn { color: var(--accent2); text-shadow: 0 0 8px rgba(255,107,53,0.3); }
   .checkin-btn {
     background: transparent; border: 1px solid var(--border);
-    color: var(--muted); font-family: var(--mono); font-size: 0.6rem;
-    letter-spacing: 0.1em; padding: 0.4rem 0.7rem; cursor: pointer;
+    color: var(--muted); font-family: var(--mono); font-size: 0.55rem;
+    letter-spacing: 0.1em; padding: 0.5rem 0.8rem; cursor: pointer;
     transition: all 0.2s;
   }
   .checkin-btn:hover { border-color: var(--accent3); color: var(--accent3); }
   .empty-state {
-    font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
-    padding: 1rem; text-align: center; border: 1px dashed var(--border);
+    font-family: var(--tech); font-size: 0.7rem; color: var(--dim);
+    padding: 2.5rem 1rem; text-align: center; border: 1px dashed var(--border);
   }
 
-  /* CHECKOUT FORM */
-  .checkout-card { grid-column: 3; }
-  .input-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  /* ===================== FORMS ===================== */
+  .form-group { margin-bottom: 1rem; }
+  .form-label {
+    font-family: var(--tech); font-size: 0.55rem;
+    color: var(--dim); letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem; display: block;
+  }
+  .input-row { display: flex; gap: 0.5rem; }
   .mono-input {
     flex: 1; background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); font-family: var(--mono); font-size: 0.72rem;
-    padding: 0.7rem 0.9rem; outline: none; transition: border-color 0.2s;
-    letter-spacing: 0.05em;
+    color: var(--text); font-family: var(--tech); font-size: 0.72rem;
+    padding: 0.75rem 1rem; outline: none;
+    transition: border-color 0.2s; letter-spacing: 0.05em;
   }
-  .mono-input:focus { border-color: var(--accent); }
-  .mono-input::placeholder { color: var(--muted); }
+  .mono-input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,229,255,0.08); }
+  .mono-input::placeholder { color: var(--dim); }
   .action-btn {
     background: var(--accent); color: var(--bg);
     border: 1px solid var(--accent); font-family: var(--mono);
-    font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.7rem 1rem;
-    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    font-size: 0.6rem; letter-spacing: 0.12em; padding: 0.75rem 1.4rem;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap; font-weight: 700;
   }
   .action-btn:hover { background: transparent; color: var(--accent); }
-  .form-result {
-    font-family: var(--mono); font-size: 0.65rem; margin-top: 0.6rem;
-    padding: 0.5rem 0.7rem; border-left: 2px solid;
-    min-height: 1.8rem;
+  .action-btn.secondary {
+    background: transparent; color: var(--text); border-color: var(--border);
   }
-  .form-result.ok { color: var(--accent3); border-color: var(--accent3); background: rgba(127,255,107,0.04); }
-  .form-result.err { color: var(--accent2); border-color: var(--accent2); background: rgba(255,107,53,0.04); }
+  .action-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .form-result {
+    font-family: var(--tech); font-size: 0.65rem; margin-top: 0.6rem;
+    padding: 0.5rem 0.8rem; border-left: 2px solid; min-height: 1.6rem;
+  }
+  .form-result.ok { color: var(--accent3); border-color: var(--accent3); background: rgba(127,255,107,0.03); }
+  .form-result.err { color: var(--accent2); border-color: var(--accent2); background: rgba(255,107,53,0.03); }
   .form-result.idle { color: transparent; border-color: transparent; }
 
-  /* ALERTS */
-  .alerts-card { grid-column: 1 / 3; }
-  .alert-list { display: flex; flex-direction: column; gap: 0.3rem; max-height: 260px; overflow-y: auto; }
-  .alert-list::-webkit-scrollbar { width: 3px; }
+  /* ===================== ALERTS ===================== */
+  .alert-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 500px; overflow-y: auto; }
+  .alert-list::-webkit-scrollbar { width: 2px; }
+  .alert-list::-webkit-scrollbar-track { background: transparent; }
   .alert-list::-webkit-scrollbar-thumb { background: var(--border); }
   .alert-row {
-    display: grid; grid-template-columns: 180px 1fr auto;
-    padding: 0.5rem 0.7rem; background: var(--bg);
-    border: 1px solid var(--border); gap: 1rem; align-items: center;
-    font-family: var(--mono); font-size: 0.65rem;
-    animation: rowIn 0.3s ease both;
+    display: grid; grid-template-columns: 170px 1fr auto;
+    padding: 0.7rem 1rem; background: var(--bg);
+    border: 1px solid var(--border); gap: 1.5rem; align-items: center;
+    font-family: var(--tech); font-size: 0.65rem;
+    animation: rowIn 0.25s ease both;
+    transition: border-color 0.15s;
   }
-  @keyframes rowIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
-  .alert-ts { color: var(--muted); }
+  .alert-row:hover { border-color: var(--border-light); }
+  @keyframes rowIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+  .alert-ts { color: var(--dim); }
   .alert-loc { color: var(--text); }
-  .alert-status { font-weight: 700; }
+  .alert-status { font-weight: 700; letter-spacing: 0.05em; }
   .alert-status.MISSING { color: var(--accent2); }
   .alert-status.PRESENT { color: var(--accent3); }
 
-  /* LOCATIONS */
-  .locations-card { grid-column: 3; grid-row: span 2; }
-  .loc-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto; }
-  .loc-list::-webkit-scrollbar { width: 3px; }
+  /* ALERT SUMMARY TABLE */
+  .summary-table { width: 100%; border-collapse: collapse; }
+  .summary-table th {
+    font-family: var(--tech); font-size: 0.55rem;
+    color: var(--dim); letter-spacing: 0.1em;
+    text-align: left; padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border); text-transform: uppercase;
+  }
+  .summary-table td {
+    font-family: var(--tech); font-size: 0.68rem;
+    padding: 0.6rem 0.6rem; border-bottom: 1px solid rgba(26,40,48,0.6);
+    color: var(--text);
+  }
+  .summary-table tr:hover td { background: rgba(0,229,255,0.015); }
+
+  /* ===================== LOCATIONS ===================== */
+  .loc-list { display: flex; flex-direction: column; gap: 0.8rem; }
+  .loc-list::-webkit-scrollbar { width: 2px; }
   .loc-list::-webkit-scrollbar-thumb { background: var(--border); }
-  .loc-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .loc-row { display: flex; flex-direction: column; gap: 0.35rem; }
   .loc-header {
     display: flex; justify-content: space-between;
-    font-family: var(--mono); font-size: 0.65rem;
+    font-family: var(--tech); font-size: 0.65rem;
   }
   .loc-name { color: var(--muted); }
-  .loc-pct { color: var(--text); }
+  .loc-pct { color: var(--text); font-size: 0.6rem; }
   .loc-bar-bg { height: 3px; background: var(--border); width: 100%; }
-  .loc-bar-fill {
-    height: 100%; background: var(--accent);
-    transition: width 0.8s ease;
-  }
-  .loc-bar-fill.high { background: var(--accent2); }
+  .loc-bar-fill { height: 100%; transition: width 0.8s ease; }
+  .loc-bar-fill.high { background: var(--accent2); box-shadow: 0 0 4px rgba(255,107,53,0.2); }
   .loc-bar-fill.mid { background: var(--accent); }
   .loc-bar-fill.low { background: var(--accent3); }
 
-  /* ITEMS SEARCH */
-  .items-card { grid-column: 1 / 3; }
-  .items-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+  /* ===================== ITEMS TABLE ===================== */
+  .items-table { width: 100%; border-collapse: collapse; }
   .items-table th {
-    font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em;
-    color: var(--muted); text-align: left; padding: 0.4rem 0.5rem;
+    font-family: var(--tech); font-size: 0.55rem; letter-spacing: 0.1em;
+    color: var(--dim); text-align: left; padding: 0.5rem 0.6rem;
     border-bottom: 1px solid var(--border); text-transform: uppercase;
   }
   .items-table td {
-    font-family: var(--mono); font-size: 0.68rem;
-    padding: 0.5rem 0.5rem; border-bottom: 1px solid rgba(30,45,53,0.5);
+    font-family: var(--tech); font-size: 0.68rem;
+    padding: 0.6rem 0.6rem; border-bottom: 1px solid rgba(26,40,48,0.5);
     color: var(--text);
   }
-  .items-table tr:hover td { background: rgba(0,229,255,0.02); }
+  .items-table tbody tr:hover td { background: rgba(0,229,255,0.015); }
   .badge {
-    display: inline-block; font-size: 0.55rem; letter-spacing: 0.1em;
-    padding: 0.15rem 0.4rem; border: 1px solid;
+    display: inline-block; font-size: 0.48rem; letter-spacing: 0.1em;
+    padding: 0.15rem 0.5rem; border: 1px solid; font-family: var(--tech);
   }
   .badge-green { border-color: var(--accent3); color: var(--accent3); }
   .badge-orange { border-color: var(--accent2); color: var(--accent2); }
-  .badge-muted { border-color: var(--muted); color: var(--muted); }
+  .badge-muted { border-color: var(--dim); color: var(--dim); }
+
+  /* ===================== DIVIDER ===================== */
+  .divider {
+    height: 1px; background: var(--border);
+    margin: 2rem 0;
+  }
+
+  /* ===================== RESPONSIVE ===================== */
+  @media (max-width: 1024px) {
+    .two-col { grid-template-columns: 1fr; }
+    .stat-strip { flex-wrap: wrap; gap: 1.5rem; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); z-index: 300; }
+    .sidebar.open { transform: translateX(0); }
+    .mobile-toggle { display: block; }
+    .main { margin-left: 0; }
+    .topbar, .content { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .topbar { padding-top: 3.5rem; }
+    .alert-row { grid-template-columns: 1fr auto; }
+    .alert-ts { display: none; }
+  }
 </style>
 </head>
 <body>
 
 <!-- LOADER -->
 <div id="loader">
-  <div class="loader-logo">WWT_WAREHOUSE.SYS</div>
+  <div class="loader-logo">WWT_SYS</div>
   <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
-  <div class="loader-status" id="loader-status">Connecting to server...</div>
+  <div class="loader-lines" id="loader-lines"></div>
 </div>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-logo">WWT<span>_</span>WAREHOUSE<span>.</span>SYS</div>
-  <div class="nav-right">
-    <div class="connection-dot">
+<!-- MOBILE TOGGLE -->
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">WWT<span>_</span>WAREHOUSE<span>.</span>SYS</div>
+    <div class="sidebar-version">v3.0 · AUTOFLAGGER</div>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Views</div>
+    <button class="nav-item active" data-view="overview" onclick="switchView('overview')">
+      <span class="nav-icon">◈</span> Overview
+    </button>
+    <button class="nav-item" data-view="cv" onclick="switchView('cv')">
+      <span class="nav-icon">◎</span> CV Alerts
+    </button>
+
+    <div class="nav-section-label" style="margin-top: 0.5rem;">Operations</div>
+    <button class="nav-item" data-view="workarea" onclick="switchView('workarea')">
+      <span class="nav-icon">▣</span> Work Area
+    </button>
+    <button class="nav-item" data-view="inventory" onclick="switchView('inventory')">
+      <span class="nav-icon">≡</span> Inventory
+    </button>
+    <button class="nav-item" data-view="locations" onclick="switchView('locations')">
+      <span class="nav-icon">⊞</span> Locations
+    </button>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="conn-status">
       <span class="dot-live" id="conn-dot"></span>
       <span id="conn-label">LIVE</span>
     </div>
-    <div class="nav-time" id="clock"></div>
+    <div class="sidebar-clock" id="clock"></div>
   </div>
-</nav>
+</aside>
 
-<!-- DASHBOARD -->
-<div class="dashboard">
+<!-- MAIN -->
+<div class="main">
 
-  <!-- STAT ROW -->
-  <div class="stat-row">
-    <div class="stat-card" id="stat-items">
-      <div class="stat-value" id="v-items">—</div>
-      <div class="stat-label-sm">Total Items</div>
+  <!-- ============== OVERVIEW ============== -->
+  <div class="view-panel active" id="panel-overview">
+    <div class="topbar">
+      <div>
+        <div class="page-title">System Overview</div>
+        <div class="page-subtitle">All subsystems at a glance</div>
+      </div>
+      <div class="topbar-right">AUTO-REFRESH 5s</div>
     </div>
-    <div class="stat-card" id="stat-locs">
-      <div class="stat-value" id="v-locs">—</div>
-      <div class="stat-label-sm">Locations</div>
-    </div>
-    <div class="stat-card" id="stat-work">
-      <div class="stat-value" id="v-work">—</div>
-      <div class="stat-label-sm">In Work Area</div>
-    </div>
-    <div class="stat-card" id="stat-alerts">
-      <div class="stat-value warn" id="v-alerts">—</div>
-      <div class="stat-label-sm">CV Alerts (recent)</div>
-    </div>
-  </div>
+    <div class="content">
+      <div class="stat-strip">
+        <div class="stat-block">
+          <div class="stat-num" id="v-items">—</div>
+          <div class="stat-lbl">Total Items</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num" id="v-locs">—</div>
+          <div class="stat-lbl">Locations</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num" id="v-work">—</div>
+          <div class="stat-lbl">In Work Area</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num warn" id="v-alerts">—</div>
+          <div class="stat-lbl">CV Alerts</div>
+        </div>
+      </div>
 
-  <!-- WORK AREA -->
-  <div class="card work-area-card">
-    <div class="card-label">
-      // WORK AREA ACTIVE
-      <span class="refresh-tag">AUTO-REFRESH 5s</span>
-    </div>
-    <div class="work-items" id="work-items">
-      <div class="empty-state">Work area is empty.</div>
-    </div>
-  </div>
-
-  <!-- CHECKOUT FORM -->
-  <div class="card checkout-card">
-    <div class="card-label">// CHECKOUT / CHECKIN</div>
-    <div style="font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.7;">
-      Enter a part number to check an item out to the work area (15-min timer starts). Check it back in when done.
-    </div>
-
-    <div style="font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 0.4rem;">CHECK OUT</div>
-    <div class="input-row">
-      <input class="mono-input" id="checkout-input" placeholder="PART NUMBER" />
-      <button class="action-btn" onclick="doCheckout()">OUT</button>
-    </div>
-    <div class="form-result idle" id="checkout-result"></div>
-
-    <div style="font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; margin: 1rem 0 0.4rem;">CHECK IN</div>
-    <div class="input-row">
-      <input class="mono-input" id="checkin-input" placeholder="PART NUMBER" />
-      <button class="action-btn" style="background: transparent; color: var(--text); border-color: var(--border);" onclick="doCheckin()">IN</button>
-    </div>
-    <div class="form-result idle" id="checkin-result"></div>
-  </div>
-
-  <!-- CV ALERTS -->
-  <div class="card alerts-card">
-    <div class="card-label">
-      // COMPUTER VISION ALERTS
-      <span class="refresh-tag">alerts-compvis.csv</span>
-    </div>
-    <div class="alert-list" id="alert-list">
-      <div class="empty-state">No alerts loaded.</div>
+      <div class="two-col">
+        <div class="section">
+          <div class="section-label">Work Area <span class="tag">ACTIVE ITEMS</span></div>
+          <div class="work-items" id="work-items-overview">
+            <div class="empty-state">Work area is empty.</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-label">Recent CV Alerts <span class="tag">LAST 8</span></div>
+          <div class="alert-list" id="alert-list-overview" style="max-height: 320px;">
+            <div class="empty-state">No alerts.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- LOCATIONS -->
-  <div class="card locations-card">
-    <div class="card-label">// LOCATION CAPACITY</div>
-    <div class="loc-list" id="loc-list">
-      <div class="empty-state">Loading...</div>
+  <!-- ============== CV ALERTS ============== -->
+  <div class="view-panel" id="panel-cv">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Computer Vision Alerts</div>
+        <div class="page-subtitle">Monitoring feed from CV subsystem</div>
+      </div>
+      <div class="topbar-right">alerts-compvis.csv</div>
+    </div>
+    <div class="content">
+      <div class="stat-strip">
+        <div class="stat-block">
+          <div class="stat-num warn" id="v-cv-total">—</div>
+          <div class="stat-lbl">Total Alerts</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num warn" id="v-cv-missing">—</div>
+          <div class="stat-lbl">Missing</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num ok" id="v-cv-present">—</div>
+          <div class="stat-lbl">Present</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <div class="section-label">Alert Log <span class="tag">ALL</span></div>
+          <div style="margin-bottom: 1rem;">
+            <input class="mono-input" id="alert-search" placeholder="Filter by location or status..." oninput="filterAlerts()" style="width: 100%;" />
+          </div>
+          <div class="alert-list" id="alert-list-cv">
+            <div class="empty-state">No alerts loaded.</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-label">Breakdown by Location</div>
+          <table class="summary-table" id="alert-breakdown">
+            <thead>
+              <tr><th>Location</th><th>Missing</th><th>Present</th></tr>
+            </thead>
+            <tbody id="alert-breakdown-body">
+              <tr><td colspan="3" style="color: var(--dim); text-align: center;">No data.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ITEM SEARCH -->
-  <div class="card items-card">
-    <div class="card-label">
-      // INVENTORY SEARCH
-      <span class="refresh-tag">items_with_area.csv</span>
+  <!-- ============== WORK AREA ============== -->
+  <div class="view-panel" id="panel-workarea">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Work Area</div>
+        <div class="page-subtitle">Checked-out items and timers</div>
+      </div>
+      <div class="topbar-right">AUTO-REFRESH 5s</div>
     </div>
-    <div class="input-row" style="margin-bottom: 0.5rem;">
-      <input class="mono-input" id="search-input" placeholder="Search part number or description..." oninput="searchItems()" />
-    </div>
-    <div style="overflow-x: auto;">
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th>Part Number</th>
-            <th>Description</th>
-            <th>Area (ft²)</th>
-            <th>Price</th>
-            <th>Location</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="items-tbody">
-          <tr><td colspan="6" style="color: var(--muted); text-align: center;">Loading...</td></tr>
-        </tbody>
-      </table>
+    <div class="content">
+      <div class="stat-strip">
+        <div class="stat-block">
+          <div class="stat-num" id="v-work-wa">—</div>
+          <div class="stat-lbl">Active Items</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Active Items</div>
+        <div class="work-items" id="work-items-wa">
+          <div class="empty-state">Work area is empty.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="two-col">
+        <div class="section">
+          <div class="section-label">Check Out</div>
+          <div class="card-desc">Enter a part number to check an item out. A 15-minute timer starts automatically.</div>
+          <div class="input-row">
+            <input class="mono-input" id="checkout-input" placeholder="PART NUMBER" />
+            <button class="action-btn" onclick="doCheckout('checkout-input','checkout-result')">CHECK OUT</button>
+          </div>
+          <div class="form-result idle" id="checkout-result"></div>
+        </div>
+        <div class="section">
+          <div class="section-label">Check In</div>
+          <div class="card-desc">Return an item to storage. Timer stops and elapsed time is logged.</div>
+          <div class="input-row">
+            <input class="mono-input" id="checkin-input" placeholder="PART NUMBER" />
+            <button class="action-btn secondary" onclick="doCheckin('checkin-input','checkin-result')">CHECK IN</button>
+          </div>
+          <div class="form-result idle" id="checkin-result"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-</div>
+  <!-- ============== INVENTORY ============== -->
+  <div class="view-panel" id="panel-inventory">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Inventory</div>
+        <div class="page-subtitle">Full item catalog</div>
+      </div>
+      <div class="topbar-right">items_with_area.csv</div>
+    </div>
+    <div class="content">
+      <div class="stat-strip">
+        <div class="stat-block">
+          <div class="stat-num" id="v-items-inv">—</div>
+          <div class="stat-lbl">Total Items</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div style="margin-bottom: 1rem;">
+          <input class="mono-input" id="search-input" placeholder="Search part number or description..." oninput="searchItems()" style="width: 100%; max-width: 480px;" />
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Part Number</th>
+                <th>Description</th>
+                <th>Area (ft²)</th>
+                <th>Price</th>
+                <th>Location</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="items-tbody">
+              <tr><td colspan="6" style="color: var(--dim); text-align: center;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== LOCATIONS ============== -->
+  <div class="view-panel" id="panel-locations">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Location Capacity</div>
+        <div class="page-subtitle">Storage utilization by location</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="stat-strip">
+        <div class="stat-block">
+          <div class="stat-num" id="v-locs-loc">—</div>
+          <div class="stat-lbl">Total Locations</div>
+        </div>
+      </div>
+
+      <div class="section" style="max-width: 600px;">
+        <div class="loc-list" id="loc-list-main">
+          <div class="empty-state">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .main -->
 
 <script>
   const API = 'https://autoflagger.onrender.com/api';
   let connected = false;
   let workTimers = {};
+  let allAlerts = [];
+  let currentView = 'overview';
+
+  // ---- VIEW SWITCHING ----
+  function switchView(view) {
+    currentView = view;
+    document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.nav-item[data-view="${view}"]`).classList.add('active');
+    document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(`panel-${view}`);
+    panel.classList.remove('active');
+    void panel.offsetWidth;
+    panel.classList.add('active');
+    // Close mobile sidebar
+    document.querySelector('.sidebar').classList.remove('open');
+  }
 
   // ---- CLOCK ----
   function updateClock() {
     const now = new Date();
     document.getElementById('clock').textContent =
-      now.toLocaleTimeString('en-US', { hour12: false });
+      now.toLocaleTimeString('en-US', { hour12: false }) + ' · ' +
+      now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
   }
   setInterval(updateClock, 1000);
   updateClock();
 
   // ---- LOADER ----
-  const loaderMsgs = [
-    'Connecting to server...',
-    'Loading inventory data...',
-    'Syncing location capacities...',
-    'Fetching CV alert log...',
+  const bootLines = [
+    '> kernel init...',
+    '> loading modules...',
+    '> syncing inventory...',
+    '> cv subsystem online...',
+    '> READY',
   ];
-  loaderMsgs.forEach((msg, i) =>
-    setTimeout(() => document.getElementById('loader-status').textContent = msg, i * 400)
-  );
+  const loaderEl = document.getElementById('loader-lines');
+  bootLines.forEach((line, i) => {
+    setTimeout(() => { loaderEl.innerHTML += line + '<br>'; }, i * 320);
+  });
   setTimeout(() => document.getElementById('loader').classList.add('hidden'), 1900);
 
-  // ---- CONNECTION STATE ----
+  // ---- CONNECTION ----
   function setConnected(ok) {
     connected = ok;
     const dot = document.getElementById('conn-dot');
     const label = document.getElementById('conn-label');
-    if (ok) {
-      dot.classList.remove('offline');
-      label.textContent = 'LIVE';
-    } else {
-      dot.classList.add('offline');
-      label.textContent = 'OFFLINE';
-    }
+    dot.classList.toggle('offline', !ok);
+    label.textContent = ok ? 'LIVE' : 'OFFLINE';
   }
 
-  // ---- MAIN FETCH: STATUS ----
+  // ---- MAIN FETCH ----
   async function fetchStatus() {
     try {
       const res = await fetch(`${API}/status`);
-      if (!res.ok) throw new Error('bad response');
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setConnected(true);
+      allAlerts = data.recentAlerts || [];
       renderStats(data.summary);
       renderWorkArea(data.workArea);
       renderAlerts(data.recentAlerts);
       renderLocations(data.locations);
-    } catch (e) {
-      setConnected(false);
-    }
+      renderCVStats(data.recentAlerts);
+    } catch (e) { setConnected(false); }
   }
 
-  // ---- RENDER STATS ----
+  // ---- STATS ----
   function renderStats(s) {
-    animateStat('v-items', s.totalItems, 'stat-items');
-    animateStat('v-locs', s.totalLocations, 'stat-locs');
-    animateStat('v-work', s.workAreaCount, 'stat-work');
-    animateStat('v-alerts', s.recentAlertCount, 'stat-alerts');
+    setStat('v-items', s.totalItems);
+    setStat('v-locs', s.totalLocations);
+    setStat('v-work', s.workAreaCount);
+    setStat('v-alerts', s.recentAlertCount);
+    setStat('v-items-inv', s.totalItems);
+    setStat('v-locs-loc', s.totalLocations);
+    setStat('v-work-wa', s.workAreaCount);
   }
-
-  function animateStat(id, val, cardId) {
+  function setStat(id, val) {
     const el = document.getElementById(id);
-    if (el.textContent !== String(val)) {
-      el.textContent = val;
-      const card = document.getElementById(cardId);
-      card.classList.remove('updated');
-      void card.offsetWidth;
-      card.classList.add('updated');
-    }
+    if (el && el.textContent !== String(val)) el.textContent = val;
   }
 
-  // ---- RENDER WORK AREA ----
-  function renderWorkArea(items) {
-    const container = document.getElementById('work-items');
-    if (!items.length) {
-      container.innerHTML = '<div class="empty-state">Work area is empty.</div>';
+  // ---- CV STATS ----
+  function renderCVStats(alerts) {
+    const missing = alerts.filter(a => a.status === 'MISSING').length;
+    const present = alerts.filter(a => a.status === 'PRESENT').length;
+    setStat('v-cv-total', alerts.length);
+    setStat('v-cv-missing', missing);
+    setStat('v-cv-present', present);
+
+    const byLoc = {};
+    alerts.forEach(a => {
+      const loc = a.location || 'Unknown';
+      if (!byLoc[loc]) byLoc[loc] = { missing: 0, present: 0 };
+      if (a.status === 'MISSING') byLoc[loc].missing++;
+      else byLoc[loc].present++;
+    });
+
+    const tbody = document.getElementById('alert-breakdown-body');
+    const entries = Object.entries(byLoc);
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--dim);text-align:center;">No data.</td></tr>';
       return;
     }
-    container.innerHTML = items.map(item => `
-      <div class="work-item ${item.overdue ? 'overdue' : ''}" id="wi-${item.partNumber}">
-        <div>
-          <div class="item-id">${item.partNumber}</div>
-          <div class="item-desc">${item.description || '—'} · $${Number(item.price || 0).toLocaleString()}</div>
-        </div>
-        <div class="timer ${item.overdue ? 'warn' : ''}" id="timer-${item.partNumber}">
-          ${formatCountdown(item.secondsLeft, item.overdue, item.minutesElapsed)}
-        </div>
-        <button class="checkin-btn" onclick="quickCheckin('${item.partNumber}')">CHECK IN</button>
-      </div>
+    tbody.innerHTML = entries.map(([loc, c]) => `
+      <tr>
+        <td>${loc}</td>
+        <td style="color:${c.missing > 0 ? 'var(--accent2)' : 'var(--dim)'}; font-weight:${c.missing > 0 ? '700' : '400'}">${c.missing}</td>
+        <td style="color:var(--accent3)">${c.present}</td>
+      </tr>
     `).join('');
+  }
 
-    // Start live countdowns
+  // ---- WORK AREA ----
+  function renderWorkArea(items) {
+    ['work-items-overview', 'work-items-wa'].forEach(cId => {
+      const c = document.getElementById(cId);
+      if (!c) return;
+      if (!items.length) { c.innerHTML = '<div class="empty-state">Work area is empty.</div>'; return; }
+      c.innerHTML = items.map(item => `
+        <div class="work-item ${item.overdue ? 'overdue' : ''}" id="wi-${item.partNumber}-${cId}">
+          <div>
+            <div class="item-id">${item.partNumber}</div>
+            <div class="item-desc">${item.description || '—'} · $${Number(item.price||0).toLocaleString()}</div>
+          </div>
+          <div class="timer ${item.overdue ? 'warn' : ''}" id="timer-${item.partNumber}-${cId}">
+            ${fmtTime(item.secondsLeft, item.overdue, item.minutesElapsed)}
+          </div>
+          <button class="checkin-btn" onclick="quickCheckin('${item.partNumber}')">CHECK IN</button>
+        </div>
+      `).join('');
+    });
     items.forEach(item => {
       clearInterval(workTimers[item.partNumber]);
-      let secondsLeft = item.secondsLeft;
       const checkedAt = Date.now() - (item.minutesElapsed * 60000);
       workTimers[item.partNumber] = setInterval(() => {
         const elapsed = Math.floor((Date.now() - checkedAt) / 1000);
         const sLeft = Math.max(0, 900 - elapsed);
         const overdue = elapsed > 900;
-        const el = document.getElementById(`timer-${item.partNumber}`);
-        const wi = document.getElementById(`wi-${item.partNumber}`);
-        if (el) {
-          el.textContent = formatCountdown(sLeft, overdue, Math.floor(elapsed / 60));
+        document.querySelectorAll(`[id^="timer-${item.partNumber}-"]`).forEach(el => {
+          el.textContent = fmtTime(sLeft, overdue, Math.floor(elapsed / 60));
           el.className = `timer ${overdue ? 'warn' : ''}`;
-        }
-        if (wi) wi.className = `work-item ${overdue ? 'overdue' : ''}`;
+        });
+        document.querySelectorAll(`[id^="wi-${item.partNumber}-"]`).forEach(wi => {
+          wi.className = `work-item ${overdue ? 'overdue' : ''}`;
+        });
       }, 1000);
     });
   }
-
-  function formatCountdown(secondsLeft, overdue, minutesElapsed) {
-    if (overdue) return `+${minutesElapsed - 15}m OVERDUE`;
-    const m = Math.floor(secondsLeft / 60);
-    const s = secondsLeft % 60;
-    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  function fmtTime(sLeft, overdue, mElapsed) {
+    if (overdue) return `+${mElapsed - 15}m OVERDUE`;
+    return `${String(Math.floor(sLeft/60)).padStart(2,'0')}:${String(sLeft%60).padStart(2,'0')}`;
   }
 
-  // ---- RENDER ALERTS ----
+  // ---- ALERTS ----
   function renderAlerts(alerts) {
-    const list = document.getElementById('alert-list');
-    if (!alerts.length) {
-      list.innerHTML = '<div class="empty-state">No alerts.</div>';
-      return;
-    }
-    list.innerHTML = alerts.map(a => `
+    renderAlertList('alert-list-overview', alerts.slice(0, 8));
+    renderAlertList('alert-list-cv', alerts);
+  }
+  function renderAlertList(id, items) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!items.length) { el.innerHTML = '<div class="empty-state">No alerts.</div>'; return; }
+    el.innerHTML = items.map(a => `
       <div class="alert-row">
-        <span class="alert-ts">${(a.timestamp || '').substring(0, 19)}</span>
-        <span class="alert-loc">${a.location || '—'}</span>
-        <span class="alert-status ${a.status}">${a.status || '—'}</span>
+        <span class="alert-ts">${(a.timestamp||'').substring(0,19)}</span>
+        <span class="alert-loc">${a.location||'—'}</span>
+        <span class="alert-status ${a.status}">${a.status||'—'}</span>
       </div>
     `).join('');
   }
+  function filterAlerts() {
+    const q = document.getElementById('alert-search').value.toLowerCase();
+    const filtered = allAlerts.filter(a =>
+      (a.location||'').toLowerCase().includes(q) || (a.status||'').toLowerCase().includes(q)
+    );
+    renderAlertList('alert-list-cv', filtered);
+  }
 
-  // ---- RENDER LOCATIONS ----
+  // ---- LOCATIONS ----
   function renderLocations(locs) {
-    const list = document.getElementById('loc-list');
-    if (!locs.length) {
-      list.innerHTML = '<div class="empty-state">No location data.</div>';
-      return;
-    }
-    list.innerHTML = locs.map(loc => {
+    const el = document.getElementById('loc-list-main');
+    if (!el) return;
+    if (!locs.length) { el.innerHTML = '<div class="empty-state">No location data.</div>'; return; }
+    el.innerHTML = locs.map(loc => {
       const cls = loc.pct > 80 ? 'high' : loc.pct > 40 ? 'mid' : 'low';
       return `
         <div class="loc-row">
@@ -536,15 +923,13 @@
             <span class="loc-name">LOC ${loc.location}</span>
             <span class="loc-pct">${loc.usedArea}/${loc.totalArea} ft² · <strong>${loc.pct}%</strong></span>
           </div>
-          <div class="loc-bar-bg">
-            <div class="loc-bar-fill ${cls}" style="width: ${loc.pct}%"></div>
-          </div>
+          <div class="loc-bar-bg"><div class="loc-bar-fill ${cls}" style="width:${loc.pct}%"></div></div>
         </div>
       `;
     }).join('');
   }
 
-  // ---- ITEM SEARCH ----
+  // ---- ITEMS ----
   async function searchItems() {
     const q = document.getElementById('search-input').value;
     try {
@@ -553,111 +938,93 @@
       renderItems(data.items);
     } catch (e) {}
   }
-
   function renderItems(items) {
     const tbody = document.getElementById('items-tbody');
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color: var(--muted); text-align:center; font-family:var(--mono); font-size:0.7rem;">No items found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--dim);text-align:center;">No items found.</td></tr>';
       return;
     }
     tbody.innerHTML = items.map(item => {
-      const status = item.status === 'WORK AREA'
+      const st = item.status === 'WORK AREA'
         ? '<span class="badge badge-orange">WORK AREA</span>'
         : item.status === 'IN STORAGE'
         ? '<span class="badge badge-green">IN STORAGE</span>'
         : '<span class="badge badge-muted">UNASSIGNED</span>';
-      return `
-        <tr>
-          <td style="color: var(--accent);">${item.partNumber}</td>
-          <td style="color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.description}</td>
-          <td>${item.area}</td>
-          <td>$${Number(item.price || 0).toLocaleString()}</td>
-          <td>${item.location}</td>
-          <td>${status}</td>
-        </tr>
-      `;
+      return `<tr>
+        <td style="color:var(--accent)">${item.partNumber}</td>
+        <td style="color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.description}</td>
+        <td>${item.area}</td>
+        <td>$${Number(item.price||0).toLocaleString()}</td>
+        <td>${item.location}</td>
+        <td>${st}</td>
+      </tr>`;
     }).join('');
   }
 
-  // ---- CHECKOUT ----
-  async function doCheckout() {
-    const pn = document.getElementById('checkout-input').value.trim().toUpperCase();
-    const resultEl = document.getElementById('checkout-result');
+  // ---- CHECKOUT / CHECKIN ----
+  async function doCheckout(inputId, resultId) {
+    const input = document.getElementById(inputId);
+    const result = document.getElementById(resultId);
+    const pn = input.value.trim().toUpperCase();
     if (!pn) return;
     try {
       const res = await fetch(`${API}/checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ partNumber: pn })
       });
       const data = await res.json();
       if (res.ok) {
-        resultEl.textContent = `${pn} checked out — 15-min timer started.`;
-        resultEl.className = 'form-result ok';
-        document.getElementById('checkout-input').value = '';
-        fetchStatus();
-      } else {
-        resultEl.textContent = data.error || 'Error';
-        resultEl.className = 'form-result err';
-      }
-    } catch (e) {
-      resultEl.textContent = 'Server unreachable.';
-      resultEl.className = 'form-result err';
-    }
-    setTimeout(() => resultEl.className = 'form-result idle', 4000);
+        result.textContent = `${pn} checked out — 15-min timer started.`;
+        result.className = 'form-result ok';
+        input.value = ''; fetchStatus();
+      } else { result.textContent = data.error||'Error'; result.className = 'form-result err'; }
+    } catch (e) { result.textContent = 'Server unreachable.'; result.className = 'form-result err'; }
+    setTimeout(() => result.className = 'form-result idle', 4000);
   }
 
-  // ---- CHECKIN ----
-  async function doCheckin() {
-    const pn = document.getElementById('checkin-input').value.trim().toUpperCase();
-    const resultEl = document.getElementById('checkin-result');
+  async function doCheckin(inputId, resultId) {
+    const input = document.getElementById(inputId);
+    const result = document.getElementById(resultId);
+    const pn = input.value.trim().toUpperCase();
     if (!pn) return;
-    checkinPartNumber(pn, resultEl, 'checkin-input');
+    checkinPN(pn, result, inputId);
   }
-
   async function quickCheckin(pn) {
-    const resultEl = document.getElementById('checkin-result');
-    document.getElementById('checkin-input').value = pn;
-    checkinPartNumber(pn, resultEl, null);
+    const rId = currentView === 'workarea' ? 'checkin-result' : 'checkout-result';
+    const result = document.getElementById(rId);
+    if (result) checkinPN(pn, result, null);
   }
-
-  async function checkinPartNumber(pn, resultEl, clearInputId) {
+  async function checkinPN(pn, result, clearId) {
     try {
       const res = await fetch(`${API}/checkin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ partNumber: pn })
       });
       const data = await res.json();
       clearInterval(workTimers[pn]);
       if (res.ok) {
-        const msg = data.overdue
+        result.textContent = data.overdue
           ? `${pn} checked in — ${data.minutesElapsed}m elapsed. LATE.`
           : `${pn} checked in on time. (${data.minutesElapsed}m)`;
-        resultEl.textContent = msg;
-        resultEl.className = data.overdue ? 'form-result err' : 'form-result ok';
-        if (clearInputId) document.getElementById(clearInputId).value = '';
+        result.className = data.overdue ? 'form-result err' : 'form-result ok';
+        if (clearId) document.getElementById(clearId).value = '';
         fetchStatus();
-      } else {
-        resultEl.textContent = data.error || 'Error';
-        resultEl.className = 'form-result err';
-      }
-    } catch (e) {
-      resultEl.textContent = 'Server unreachable.';
-      resultEl.className = 'form-result err';
-    }
-    setTimeout(() => resultEl.className = 'form-result idle', 5000);
+      } else { result.textContent = data.error||'Error'; result.className = 'form-result err'; }
+    } catch (e) { result.textContent = 'Server unreachable.'; result.className = 'form-result err'; }
+    setTimeout(() => result.className = 'form-result idle', 5000);
   }
 
-  // ---- ENTER KEY support ----
-  document.getElementById('checkout-input').addEventListener('keydown', e => e.key === 'Enter' && doCheckout());
-  document.getElementById('checkin-input').addEventListener('keydown', e => e.key === 'Enter' && doCheckin());
+  // ---- ENTER KEY ----
+  document.querySelectorAll('.mono-input').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { const btn = input.parentElement.querySelector('.action-btn'); if (btn) btn.click(); }
+    });
+  });
 
   // ---- BOOT ----
-  fetchStatus();
-  searchItems();
-  setInterval(fetchStatus, 5000);   // poll status every 5s
-  setInterval(searchItems, 15000);  // refresh item list every 15s
+  fetchStatus(); searchItems();
+  setInterval(fetchStatus, 5000);
+  setInterval(searchItems, 15000);
 </script>
 </body>
 </html>
