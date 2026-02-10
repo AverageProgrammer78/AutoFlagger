@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WWT Warehouse Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c0f;
+    --surface: #0d1318;
+    --surface2: #111920;
+    --border: #1e2d35;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #7fff6b;
+    --text: #e8f4f8;
+    --muted: #5a7a85;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* LOADER */
+  #loader {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  #loader.hidden { opacity: 0; visibility: hidden; }
+  .loader-logo { font-family: var(--mono); font-size: 1rem; letter-spacing: 0.3em; color: var(--accent); }
+  .loader-bar-wrap { width: 280px; height: 1px; background: var(--border); position: relative; overflow: hidden; }
+  .loader-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: loadBar 1.6s cubic-bezier(0.4,0,0.2,1) forwards; }
+  .loader-status { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; }
+  @keyframes loadBar { 0%{width:0%} 30%{width:35%} 60%{width:72%} 85%{width:90%} 100%{width:100%} }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 1rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(8,12,15,0.9); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); letter-spacing: 0.15em; }
+  .nav-logo span { color: var(--muted); }
+  .nav-right { display: flex; align-items: center; gap: 1.5rem; }
+  .connection-dot {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  }
+  .dot-live {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 6px var(--accent3);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .dot-live.offline { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: none; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .nav-time { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+
+  /* LAYOUT */
+  .dashboard {
+    position: relative; z-index: 1;
+    padding: 5.5rem 2rem 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto;
+    gap: 1rem;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-label {
+    font-family: var(--mono); font-size: 0.6rem;
+    letter-spacing: 0.2em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-label .refresh-tag {
+    color: var(--muted); font-size: 0.55rem; letter-spacing: 0.1em;
+  }
+
+  /* STAT ROW */
+  .stat-row {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 1.5rem; position: relative; overflow: hidden;
+  }
+  .stat-card::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent); transform: scaleX(0); transform-origin: left;
+    transition: transform 0.5s ease;
+  }
+  .stat-card.updated::after { transform: scaleX(1); }
+  .stat-value {
+    font-family: var(--mono); font-size: 2.2rem; font-weight: 700;
+    color: var(--accent); line-height: 1;
+  }
+  .stat-value.warn { color: var(--accent2); }
+  .stat-label-sm {
+    font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.15em;
+    color: var(--muted); margin-top: 0.5rem; text-transform: uppercase;
+  }
+
+  /* WORK AREA */
+  .work-area-card { grid-column: 1 / 3; }
+  .work-items { display: flex; flex-direction: column; gap: 0.5rem; }
+  .work-item {
+    display: grid; grid-template-columns: 1fr auto auto;
+    align-items: center; gap: 1rem;
+    padding: 0.8rem 1rem;
+    background: var(--bg); border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.7rem;
+  }
+  .work-item.overdue { border-color: var(--accent2); }
+  .work-item .item-id { color: var(--accent); font-weight: 700; }
+  .work-item .item-desc { color: var(--muted); font-size: 0.65rem; margin-top: 0.1rem; }
+  .timer {
+    font-size: 1rem; font-weight: 700; font-family: var(--mono);
+    color: var(--accent3); white-space: nowrap;
+  }
+  .timer.warn { color: var(--accent2); }
+  .checkin-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--mono); font-size: 0.6rem;
+    letter-spacing: 0.1em; padding: 0.4rem 0.7rem; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .checkin-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+  .empty-state {
+    font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+    padding: 1rem; text-align: center; border: 1px dashed var(--border);
+  }
+
+  /* CHECKOUT FORM */
+  .checkout-card { grid-column: 3; }
+  .input-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .mono-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 0.72rem;
+    padding: 0.7rem 0.9rem; outline: none; transition: border-color 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .mono-input:focus { border-color: var(--accent); }
+  .mono-input::placeholder { color: var(--muted); }
+  .action-btn {
+    background: var(--accent); color: var(--bg);
+    border: 1px solid var(--accent); font-family: var(--mono);
+    font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.7rem 1rem;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .action-btn:hover { background: transparent; color: var(--accent); }
+  .form-result {
+    font-family: var(--mono); font-size: 0.65rem; margin-top: 0.6rem;
+    padding: 0.5rem 0.7rem; border-left: 2px solid;
+    min-height: 1.8rem;
+  }
+  .form-result.ok { color: var(--accent3); border-color: var(--accent3); background: rgba(127,255,107,0.04); }
+  .form-result.err { color: var(--accent2); border-color: var(--accent2); background: rgba(255,107,53,0.04); }
+  .form-result.idle { color: transparent; border-color: transparent; }
+
+  /* ALERTS */
+  .alerts-card { grid-column: 1 / 3; }
+  .alert-list { display: flex; flex-direction: column; gap: 0.3rem; max-height: 260px; overflow-y: auto; }
+  .alert-list::-webkit-scrollbar { width: 3px; }
+  .alert-list::-webkit-scrollbar-thumb { background: var(--border); }
+  .alert-row {
+    display: grid; grid-template-columns: 180px 1fr auto;
+    padding: 0.5rem 0.7rem; background: var(--bg);
+    border: 1px solid var(--border); gap: 1rem; align-items: center;
+    font-family: var(--mono); font-size: 0.65rem;
+    animation: rowIn 0.3s ease both;
+  }
+  @keyframes rowIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+  .alert-ts { color: var(--muted); }
+  .alert-loc { color: var(--text); }
+  .alert-status { font-weight: 700; }
+  .alert-status.MISSING { color: var(--accent2); }
+  .alert-status.PRESENT { color: var(--accent3); }
+
+  /* LOCATIONS */
+  .locations-card { grid-column: 3; grid-row: span 2; }
+  .loc-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto; }
+  .loc-list::-webkit-scrollbar { width: 3px; }
+  .loc-list::-webkit-scrollbar-thumb { background: var(--border); }
+  .loc-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .loc-header {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 0.65rem;
+  }
+  .loc-name { color: var(--muted); }
+  .loc-pct { color: var(--text); }
+  .loc-bar-bg { height: 3px; background: var(--border); width: 100%; }
+  .loc-bar-fill {
+    height: 100%; background: var(--accent);
+    transition: width 0.8s ease;
+  }
+  .loc-bar-fill.high { background: var(--accent2); }
+  .loc-bar-fill.mid { background: var(--accent); }
+  .loc-bar-fill.low { background: var(--accent3); }
+
+  /* ITEMS SEARCH */
+  .items-card { grid-column: 1 / 3; }
+  .items-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+  .items-table th {
+    font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em;
+    color: var(--muted); text-align: left; padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border); text-transform: uppercase;
+  }
+  .items-table td {
+    font-family: var(--mono); font-size: 0.68rem;
+    padding: 0.5rem 0.5rem; border-bottom: 1px solid rgba(30,45,53,0.5);
+    color: var(--text);
+  }
+  .items-table tr:hover td { background: rgba(0,229,255,0.02); }
+  .badge {
+    display: inline-block; font-size: 0.55rem; letter-spacing: 0.1em;
+    padding: 0.15rem 0.4rem; border: 1px solid;
+  }
+  .badge-green { border-color: var(--accent3); color: var(--accent3); }
+  .badge-orange { border-color: var(--accent2); color: var(--accent2); }
+  .badge-muted { border-color: var(--muted); color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-logo">WWT_WAREHOUSE.SYS</div>
+  <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+  <div class="loader-status" id="loader-status">Connecting to server...</div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">WWT<span>_</span>WAREHOUSE<span>.</span>SYS</div>
+  <div class="nav-right">
+    <div class="connection-dot">
+      <span class="dot-live" id="conn-dot"></span>
+      <span id="conn-label">LIVE</span>
+    </div>
+    <div class="nav-time" id="clock"></div>
+  </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+
+  <!-- STAT ROW -->
+  <div class="stat-row">
+    <div class="stat-card" id="stat-items">
+      <div class="stat-value" id="v-items">—</div>
+      <div class="stat-label-sm">Total Items</div>
+    </div>
+    <div class="stat-card" id="stat-locs">
+      <div class="stat-value" id="v-locs">—</div>
+      <div class="stat-label-sm">Locations</div>
+    </div>
+    <div class="stat-card" id="stat-work">
+      <div class="stat-value" id="v-work">—</div>
+      <div class="stat-label-sm">In Work Area</div>
+    </div>
+    <div class="stat-card" id="stat-alerts">
+      <div class="stat-value warn" id="v-alerts">—</div>
+      <div class="stat-label-sm">CV Alerts (recent)</div>
+    </div>
+  </div>
+
+  <!-- WORK AREA -->
+  <div class="card work-area-card">
+    <div class="card-label">
+      // WORK AREA ACTIVE
+      <span class="refresh-tag">AUTO-REFRESH 5s</span>
+    </div>
+    <div class="work-items" id="work-items">
+      <div class="empty-state">Work area is empty.</div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT FORM -->
+  <div class="card checkout-card">
+    <div class="card-label">// CHECKOUT / CHECKIN</div>
+    <div style="font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin-bottom: 1rem; line-height: 1.7;">
+      Enter a part number to check an item out to the work area (15-min timer starts). Check it back in when done.
+    </div>
+
+    <div style="font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 0.4rem;">CHECK OUT</div>
+    <div class="input-row">
+      <input class="mono-input" id="checkout-input" placeholder="PART NUMBER" />
+      <button class="action-btn" onclick="doCheckout()">OUT</button>
+    </div>
+    <div class="form-result idle" id="checkout-result"></div>
+
+    <div style="font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; margin: 1rem 0 0.4rem;">CHECK IN</div>
+    <div class="input-row">
+      <input class="mono-input" id="checkin-input" placeholder="PART NUMBER" />
+      <button class="action-btn" style="background: transparent; color: var(--text); border-color: var(--border);" onclick="doCheckin()">IN</button>
+    </div>
+    <div class="form-result idle" id="checkin-result"></div>
+  </div>
+
+  <!-- CV ALERTS -->
+  <div class="card alerts-card">
+    <div class="card-label">
+      // COMPUTER VISION ALERTS
+      <span class="refresh-tag">alerts-compvis.csv</span>
+    </div>
+    <div class="alert-list" id="alert-list">
+      <div class="empty-state">No alerts loaded.</div>
+    </div>
+  </div>
+
+  <!-- LOCATIONS -->
+  <div class="card locations-card">
+    <div class="card-label">// LOCATION CAPACITY</div>
+    <div class="loc-list" id="loc-list">
+      <div class="empty-state">Loading...</div>
+    </div>
+  </div>
+
+  <!-- ITEM SEARCH -->
+  <div class="card items-card">
+    <div class="card-label">
+      // INVENTORY SEARCH
+      <span class="refresh-tag">items_with_area.csv</span>
+    </div>
+    <div class="input-row" style="margin-bottom: 0.5rem;">
+      <input class="mono-input" id="search-input" placeholder="Search part number or description..." oninput="searchItems()" />
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Part Number</th>
+            <th>Description</th>
+            <th>Area (ft²)</th>
+            <th>Price</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody">
+          <tr><td colspan="6" style="color: var(--muted); text-align: center;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:3001/api';
+  let connected = false;
+  let workTimers = {};
+
+  // ---- CLOCK ----
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-US', { hour12: false });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ---- LOADER ----
+  const loaderMsgs = [
+    'Connecting to server...',
+    'Loading inventory data...',
+    'Syncing location capacities...',
+    'Fetching CV alert log...',
+  ];
+  loaderMsgs.forEach((msg, i) =>
+    setTimeout(() => document.getElementById('loader-status').textContent = msg, i * 400)
+  );
+  setTimeout(() => document.getElementById('loader').classList.add('hidden'), 1900);
+
+  // ---- CONNECTION STATE ----
+  function setConnected(ok) {
+    connected = ok;
+    const dot = document.getElementById('conn-dot');
+    const label = document.getElementById('conn-label');
+    if (ok) {
+      dot.classList.remove('offline');
+      label.textContent = 'LIVE';
+    } else {
+      dot.classList.add('offline');
+      label.textContent = 'OFFLINE';
+    }
+  }
+
+  // ---- MAIN FETCH: STATUS ----
+  async function fetchStatus() {
+    try {
+      const res = await fetch(`${API}/status`);
+      if (!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      setConnected(true);
+      renderStats(data.summary);
+      renderWorkArea(data.workArea);
+      renderAlerts(data.recentAlerts);
+      renderLocations(data.locations);
+    } catch (e) {
+      setConnected(false);
+    }
+  }
+
+  // ---- RENDER STATS ----
+  function renderStats(s) {
+    animateStat('v-items', s.totalItems, 'stat-items');
+    animateStat('v-locs', s.totalLocations, 'stat-locs');
+    animateStat('v-work', s.workAreaCount, 'stat-work');
+    animateStat('v-alerts', s.recentAlertCount, 'stat-alerts');
+  }
+
+  function animateStat(id, val, cardId) {
+    const el = document.getElementById(id);
+    if (el.textContent !== String(val)) {
+      el.textContent = val;
+      const card = document.getElementById(cardId);
+      card.classList.remove('updated');
+      void card.offsetWidth;
+      card.classList.add('updated');
+    }
+  }
+
+  // ---- RENDER WORK AREA ----
+  function renderWorkArea(items) {
+    const container = document.getElementById('work-items');
+    if (!items.length) {
+      container.innerHTML = '<div class="empty-state">Work area is empty.</div>';
+      return;
+    }
+    container.innerHTML = items.map(item => `
+      <div class="work-item ${item.overdue ? 'overdue' : ''}" id="wi-${item.partNumber}">
+        <div>
+          <div class="item-id">${item.partNumber}</div>
+          <div class="item-desc">${item.description || '—'} · $${Number(item.price || 0).toLocaleString()}</div>
+        </div>
+        <div class="timer ${item.overdue ? 'warn' : ''}" id="timer-${item.partNumber}">
+          ${formatCountdown(item.secondsLeft, item.overdue, item.minutesElapsed)}
+        </div>
+        <button class="checkin-btn" onclick="quickCheckin('${item.partNumber}')">CHECK IN</button>
+      </div>
+    `).join('');
+
+    // Start live countdowns
+    items.forEach(item => {
+      clearInterval(workTimers[item.partNumber]);
+      let secondsLeft = item.secondsLeft;
+      const checkedAt = Date.now() - (item.minutesElapsed * 60000);
+      workTimers[item.partNumber] = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - checkedAt) / 1000);
+        const sLeft = Math.max(0, 900 - elapsed);
+        const overdue = elapsed > 900;
+        const el = document.getElementById(`timer-${item.partNumber}`);
+        const wi = document.getElementById(`wi-${item.partNumber}`);
+        if (el) {
+          el.textContent = formatCountdown(sLeft, overdue, Math.floor(elapsed / 60));
+          el.className = `timer ${overdue ? 'warn' : ''}`;
+        }
+        if (wi) wi.className = `work-item ${overdue ? 'overdue' : ''}`;
+      }, 1000);
+    });
+  }
+
+  function formatCountdown(secondsLeft, overdue, minutesElapsed) {
+    if (overdue) return `+${minutesElapsed - 15}m OVERDUE`;
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  // ---- RENDER ALERTS ----
+  function renderAlerts(alerts) {
+    const list = document.getElementById('alert-list');
+    if (!alerts.length) {
+      list.innerHTML = '<div class="empty-state">No alerts.</div>';
+      return;
+    }
+    list.innerHTML = alerts.map(a => `
+      <div class="alert-row">
+        <span class="alert-ts">${(a.timestamp || '').substring(0, 19)}</span>
+        <span class="alert-loc">${a.location || '—'}</span>
+        <span class="alert-status ${a.status}">${a.status || '—'}</span>
+      </div>
+    `).join('');
+  }
+
+  // ---- RENDER LOCATIONS ----
+  function renderLocations(locs) {
+    const list = document.getElementById('loc-list');
+    if (!locs.length) {
+      list.innerHTML = '<div class="empty-state">No location data.</div>';
+      return;
+    }
+    list.innerHTML = locs.map(loc => {
+      const cls = loc.pct > 80 ? 'high' : loc.pct > 40 ? 'mid' : 'low';
+      return `
+        <div class="loc-row">
+          <div class="loc-header">
+            <span class="loc-name">LOC ${loc.location}</span>
+            <span class="loc-pct">${loc.usedArea}/${loc.totalArea} ft² · <strong>${loc.pct}%</strong></span>
+          </div>
+          <div class="loc-bar-bg">
+            <div class="loc-bar-fill ${cls}" style="width: ${loc.pct}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---- ITEM SEARCH ----
+  async function searchItems() {
+    const q = document.getElementById('search-input').value;
+    try {
+      const res = await fetch(`${API}/items?search=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderItems(data.items);
+    } catch (e) {}
+  }
+
+  function renderItems(items) {
+    const tbody = document.getElementById('items-tbody');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color: var(--muted); text-align:center; font-family:var(--mono); font-size:0.7rem;">No items found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(item => {
+      const status = item.status === 'WORK AREA'
+        ? '<span class="badge badge-orange">WORK AREA</span>'
+        : item.status === 'IN STORAGE'
+        ? '<span class="badge badge-green">IN STORAGE</span>'
+        : '<span class="badge badge-muted">UNASSIGNED</span>';
+      return `
+        <tr>
+          <td style="color: var(--accent);">${item.partNumber}</td>
+          <td style="color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.description}</td>
+          <td>${item.area}</td>
+          <td>$${Number(item.price || 0).toLocaleString()}</td>
+          <td>${item.location}</td>
+          <td>${status}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ---- CHECKOUT ----
+  async function doCheckout() {
+    const pn = document.getElementById('checkout-input').value.trim().toUpperCase();
+    const resultEl = document.getElementById('checkout-result');
+    if (!pn) return;
+    try {
+      const res = await fetch(`${API}/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partNumber: pn })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        resultEl.textContent = `${pn} checked out — 15-min timer started.`;
+        resultEl.className = 'form-result ok';
+        document.getElementById('checkout-input').value = '';
+        fetchStatus();
+      } else {
+        resultEl.textContent = data.error || 'Error';
+        resultEl.className = 'form-result err';
+      }
+    } catch (e) {
+      resultEl.textContent = 'Server unreachable.';
+      resultEl.className = 'form-result err';
+    }
+    setTimeout(() => resultEl.className = 'form-result idle', 4000);
+  }
+
+  // ---- CHECKIN ----
+  async function doCheckin() {
+    const pn = document.getElementById('checkin-input').value.trim().toUpperCase();
+    const resultEl = document.getElementById('checkin-result');
+    if (!pn) return;
+    checkinPartNumber(pn, resultEl, 'checkin-input');
+  }
+
+  async function quickCheckin(pn) {
+    const resultEl = document.getElementById('checkin-result');
+    document.getElementById('checkin-input').value = pn;
+    checkinPartNumber(pn, resultEl, null);
+  }
+
+  async function checkinPartNumber(pn, resultEl, clearInputId) {
+    try {
+      const res = await fetch(`${API}/checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partNumber: pn })
+      });
+      const data = await res.json();
+      clearInterval(workTimers[pn]);
+      if (res.ok) {
+        const msg = data.overdue
+          ? `${pn} checked in — ${data.minutesElapsed}m elapsed. LATE.`
+          : `${pn} checked in on time. (${data.minutesElapsed}m)`;
+        resultEl.textContent = msg;
+        resultEl.className = data.overdue ? 'form-result err' : 'form-result ok';
+        if (clearInputId) document.getElementById(clearInputId).value = '';
+        fetchStatus();
+      } else {
+        resultEl.textContent = data.error || 'Error';
+        resultEl.className = 'form-result err';
+      }
+    } catch (e) {
+      resultEl.textContent = 'Server unreachable.';
+      resultEl.className = 'form-result err';
+    }
+    setTimeout(() => resultEl.className = 'form-result idle', 5000);
+  }
+
+  // ---- ENTER KEY support ----
+  document.getElementById('checkout-input').addEventListener('keydown', e => e.key === 'Enter' && doCheckout());
+  document.getElementById('checkin-input').addEventListener('keydown', e => e.key === 'Enter' && doCheckin());
+
+  // ---- BOOT ----
+  fetchStatus();
+  searchItems();
+  setInterval(fetchStatus, 5000);   // poll status every 5s
+  setInterval(searchItems, 15000);  // refresh item list every 15s
+</script>
+</body>
+</html>
