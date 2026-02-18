@@ -57,13 +57,15 @@ app.get('/api/status', async (req, res) => {
     });
 
     // Calculate location capacities
+    // CSV headers: "Location", "Area (ft^2)"
     const locCapacity = locations.map(loc => {
-      const totalArea = parseFloat(loc.area) || 0;
-      const usedItems = items.filter(i => i.location === loc.location);
-      const usedArea = usedItems.reduce((sum, i) => sum + (parseFloat(i.area) || 0), 0);
+      const locName = loc['Location'] || loc['location'] || '';
+      const totalArea = parseFloat(loc['Area (ft^2)'] || loc['area'] || 0);
+      const usedItems = items.filter(i => (i['location'] || i['Location'] || '') === locName);
+      const usedArea = usedItems.reduce((sum, i) => sum + (parseFloat(i['Area (ft^2)'] || i['area'] || 0)), 0);
       const pct = totalArea > 0 ? Math.round((usedArea / totalArea) * 100) : 0;
       return {
-        location: loc.location,
+        location: locName,
         totalArea: totalArea.toFixed(2),
         usedArea: usedArea.toFixed(2),
         pct
@@ -96,20 +98,27 @@ app.get('/api/items', async (req, res) => {
     const items = await readCSV(FILES.items);
     const search = (req.query.search || '').toLowerCase();
     
+    // CSV headers: "PartNumber", "Description", "Area (ft^2)", "Price"
     let filtered = items;
     if (search) {
       filtered = items.filter(item => 
-        (item.partNumber || '').toLowerCase().includes(search) ||
-        (item.description || '').toLowerCase().includes(search)
+        (item['PartNumber'] || item['partNumber'] || '').toLowerCase().includes(search) ||
+        (item['Description'] || item['description'] || '').toLowerCase().includes(search)
       );
     }
 
     // Mark items in work area
     const results = filtered.map(item => {
-      const inWork = workArea.find(w => w.partNumber === item.partNumber);
+      const pn = item['PartNumber'] || item['partNumber'] || '';
+      const inWork = workArea.find(w => w.partNumber === pn);
+      const loc = item['location'] || item['Location'] || '';
       return {
-        ...item,
-        status: inWork ? 'WORK AREA' : (item.location ? 'IN STORAGE' : 'UNASSIGNED')
+        partNumber: pn,
+        description: item['Description'] || item['description'] || '',
+        area: item['Area (ft^2)'] || item['area'] || '',
+        price: item['Price'] || item['price'] || '',
+        location: loc,
+        status: inWork ? 'WORK AREA' : (loc ? 'IN STORAGE' : 'UNASSIGNED')
       };
     });
 
@@ -146,7 +155,7 @@ app.post('/api/checkout', async (req, res) => {
 
     // Get item details
     const items = await readCSV(FILES.items);
-    const item = items.find(i => i.partNumber === partNumber);
+    const item = items.find(i => (i['PartNumber'] || i['partNumber'] || '') === partNumber);
     if (!item) {
       return res.status(404).json({ error: 'Item not found' });
     }
@@ -154,8 +163,8 @@ app.post('/api/checkout', async (req, res) => {
     // Add to work area
     workArea.push({
       partNumber,
-      description: item.description,
-      price: item.price,
+      description: item['Description'] || item['description'] || '',
+      price: item['Price'] || item['price'] || '',
       checkedOutAt: Date.now(),
       minutesElapsed: 0,
       secondsLeft: 900,
