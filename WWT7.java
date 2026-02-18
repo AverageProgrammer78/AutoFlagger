@@ -109,7 +109,7 @@ public class WWT7
 
             while (!done)
             {
-                System.out.println("\n===== WWT TECHNOLOGY DISTRIBUTION HUB =====");
+                System.out.println("\n===== TRACKIT TECHNOLOGY DISTRIBUTION HUB =====");
                 System.out.println("1. View all items");
                 System.out.println("2. Move an item");
                 System.out.println("3. Check out to work area");
