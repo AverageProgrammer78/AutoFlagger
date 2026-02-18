@@ -129,6 +129,20 @@ app.get('/api/items', async (req, res) => {
   }
 });
 
+// API: Receive alert from CV script
+app.post('/api/alert', (req, res) => {
+  const { location, status } = req.body;
+  if (!location || !status) {
+    return res.status(400).json({ error: 'location and status required' });
+  }
+  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 23);
+  const line = `${timestamp},${location},${status}\n`;
+  fs.appendFile(FILES.alerts, line, err => {
+    if (err) return res.status(500).json({ error: 'Failed to write alert' });
+    res.json({ ok: true, timestamp, location, status });
+  });
+});
+
 // API: Get all alerts
 app.get('/api/alerts', async (req, res) => {
   try {
