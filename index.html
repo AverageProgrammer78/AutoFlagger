@@ -1,27 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TrackIT Warehouse Monitor</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
+  /* ===================== THEME VARIABLES ===================== */
   :root {
     --bg: #080c0f;
     --surface: #0d1318;
     --surface2: #111920;
+    --surface3: #162028;
     --border: #1a2830;
     --border-light: #243540;
     --accent: #00e5ff;
     --accent2: #ff6b35;
     --accent3: #7fff6b;
+    --accent4: #c084fc;
     --text: #e8f4f8;
     --muted: #5a7a85;
     --dim: #3a5560;
     --mono: 'Space Mono', monospace;
     --sans: 'Syne', sans-serif;
     --tech: 'Share Tech Mono', monospace;
-    --sidebar-w: 220px;
+    --sidebar-w: 230px;
+    --transition: 0.2s ease;
+    --radius: 0px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  [data-theme="light"] {
+    --bg: #f0f4f7;
+    --surface: #ffffff;
+    --surface2: #f7fafc;
+    --surface3: #edf2f6;
+    --border: #dce6ed;
+    --border-light: #c8d8e4;
+    --accent: #007acc;
+    --accent2: #e85d20;
+    --accent3: #2e9e1f;
+    --accent4: #7c3aed;
+    --text: #0d1e28;
+    --muted: #5a7a85;
+    --dim: #9ab5c0;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -32,26 +54,102 @@
     font-family: var(--sans);
     overflow-x: hidden;
     min-height: 100vh;
+    transition: background 0.3s ease, color 0.3s ease;
   }
 
-  /* SUBTLE GRID BG */
+  /* GRID BG */
   body::before {
     content: '';
     position: fixed; inset: 0;
     background-image:
-      linear-gradient(rgba(0,229,255,0.018) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.018) 1px, transparent 1px);
+      linear-gradient(rgba(0,229,255,0.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.012) 1px, transparent 1px);
     background-size: 50px 50px;
     pointer-events: none; z-index: 0;
+    opacity: 1;
+    transition: opacity 0.3s;
   }
+  [data-theme="light"] body::before { opacity: 0.3; }
 
-  /* SCANLINES */
-  body::after {
+  /* SCANLINES - dark only */
+  [data-theme="dark"] body::after {
     content: '';
     position: fixed; inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.015) 3px, rgba(0,0,0,0.015) 6px);
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.012) 3px, rgba(0,0,0,0.012) 6px);
     pointer-events: none; z-index: 9998;
   }
+
+  /* ===================== TOAST ===================== */
+  #toast-container {
+    position: fixed;
+    bottom: 1.5rem; right: 1.5rem;
+    z-index: 9999;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    pointer-events: none;
+  }
+  .toast {
+    font-family: var(--tech); font-size: 0.65rem;
+    padding: 0.7rem 1.1rem;
+    border: 1px solid var(--border-light);
+    background: var(--surface2);
+    color: var(--text);
+    letter-spacing: 0.05em;
+    box-shadow: var(--shadow);
+    animation: toastIn 0.25s ease both;
+    border-left: 3px solid var(--accent3);
+    max-width: 320px;
+    pointer-events: auto;
+  }
+  .toast.error { border-left-color: var(--accent2); }
+  .toast.warn { border-left-color: var(--accent); }
+  .toast.fade-out { animation: toastOut 0.3s ease both; }
+  @keyframes toastIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
+  @keyframes toastOut { from{opacity:1;transform:none} to{opacity:0;transform:translateX(16px)} }
+
+  /* ===================== MODAL ===================== */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden;
+    transition: all 0.2s ease;
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    padding: 2rem;
+    width: 420px; max-width: 90vw;
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .modal-overlay.open .modal { transform: none; }
+  .modal-title {
+    font-family: var(--mono); font-size: 0.7rem;
+    letter-spacing: 0.2em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 1.2rem;
+  }
+  .modal-body {
+    font-family: var(--tech); font-size: 0.72rem;
+    color: var(--muted); line-height: 1.8;
+    margin-bottom: 1.5rem;
+  }
+  .modal-body .highlight {
+    color: var(--text); font-weight: 700;
+    font-family: var(--mono); font-size: 0.85rem;
+  }
+  .modal-actions { display: flex; gap: 0.7rem; justify-content: flex-end; }
+  .modal-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: none; border: none; color: var(--dim);
+    font-size: 1rem; cursor: pointer; padding: 0.25rem;
+    transition: color var(--transition);
+  }
+  .modal-close:hover { color: var(--text); }
 
   /* ===================== LOADER ===================== */
   #loader {
@@ -93,7 +191,7 @@
     z-index: 100;
     display: flex; flex-direction: column;
     padding: 0;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, background 0.3s ease;
   }
 
   .sidebar-header {
@@ -115,6 +213,7 @@
   .sidebar-nav {
     flex: 1; padding: 1rem 0;
     display: flex; flex-direction: column; gap: 0.15rem;
+    overflow-y: auto;
   }
 
   .nav-section-label {
@@ -131,7 +230,7 @@
     color: var(--muted);
     cursor: pointer; border: none; background: none;
     text-align: left; width: 100%;
-    transition: all 0.2s ease;
+    transition: all var(--transition);
     position: relative;
     letter-spacing: 0.03em;
   }
@@ -152,26 +251,62 @@
   }
   .nav-item.active .nav-icon { opacity: 1; }
 
+  /* Keyboard shortcut badge */
+  .nav-kb {
+    margin-left: auto;
+    font-family: var(--tech); font-size: 0.48rem;
+    color: var(--dim); border: 1px solid var(--border);
+    padding: 0.1rem 0.35rem; letter-spacing: 0;
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+  .nav-item:hover .nav-kb { opacity: 1; }
+
+  /* Nav badge (alert count) */
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent2);
+    color: #fff; font-family: var(--tech); font-size: 0.48rem;
+    padding: 0.12rem 0.4rem; border-radius: 999px;
+    min-width: 1.2rem; text-align: center;
+    font-weight: 700;
+    display: none;
+  }
+  .nav-badge.visible { display: inline-block; }
+
   .sidebar-footer {
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--border);
-    display: flex; flex-direction: column; gap: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.6rem;
   }
   .conn-status {
     display: flex; align-items: center; gap: 0.5rem;
     font-family: var(--tech); font-size: 0.6rem; color: var(--muted);
   }
   .dot-live {
-    width: 5px; height: 5px; border-radius: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
     background: var(--accent3);
     box-shadow: 0 0 6px var(--accent3);
     animation: pulse-dot 2s ease-in-out infinite;
+    flex-shrink: 0;
   }
   .dot-live.offline { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: none; }
   @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
   .sidebar-clock {
     font-family: var(--tech); font-size: 0.6rem; color: var(--dim);
   }
+
+  /* Theme toggle */
+  .theme-toggle {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--tech); font-size: 0.55rem;
+    letter-spacing: 0.08em; padding: 0.45rem 0.8rem; cursor: pointer;
+    width: 100%; justify-content: center;
+    transition: all var(--transition);
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .theme-toggle-icon { font-size: 0.8rem; }
 
   /* Mobile hamburger */
   .mobile-toggle {
@@ -205,50 +340,85 @@
     letter-spacing: 0.05em;
   }
   .topbar-right {
-    font-family: var(--tech); font-size: 0.6rem;
-    color: var(--dim); text-align: right;
+    display: flex; align-items: center; gap: 0.8rem;
   }
+  .topbar-tag {
+    font-family: var(--tech); font-size: 0.6rem;
+    color: var(--dim);
+  }
+  .topbar-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--tech); font-size: 0.55rem;
+    letter-spacing: 0.08em; padding: 0.45rem 0.8rem; cursor: pointer;
+    transition: all var(--transition); display: flex; align-items: center; gap: 0.4rem;
+  }
+  .topbar-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   /* CONTENT AREA */
-  .content {
-    padding: 2rem 3rem 3rem;
-  }
+  .content { padding: 2rem 3rem 3rem; }
 
   /* VIEW PANELS */
-  .view-panel {
-    display: none;
-    animation: fadeUp 0.3s ease both;
-  }
+  .view-panel { display: none; animation: fadeUp 0.3s ease both; }
   .view-panel.active { display: block; }
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: none; }
   }
 
-  /* ===================== STAT STRIPS ===================== */
-  .stat-strip {
-    display: flex; gap: 2.5rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 2rem;
+  /* ===================== SKELETON LOADER ===================== */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 2px;
   }
-  .stat-block {}
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* ===================== STAT STRIP ===================== */
+  .stat-strip {
+    display: flex; gap: 0; flex-wrap: wrap;
+    border: 1px solid var(--border);
+    margin-bottom: 2rem;
+    background: var(--surface);
+  }
+  .stat-block {
+    padding: 1.4rem 2rem;
+    flex: 1; min-width: 120px;
+    border-right: 1px solid var(--border);
+    position: relative;
+    transition: background var(--transition);
+  }
+  .stat-block:last-child { border-right: none; }
+  .stat-block:hover { background: var(--surface2); }
+  .stat-block::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 2px; background: var(--accent);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .stat-block:hover::after { transform: scaleX(1); }
   .stat-num {
-    font-family: var(--mono); font-size: 1.8rem; font-weight: 700;
+    font-family: var(--mono); font-size: 1.9rem; font-weight: 700;
     color: var(--accent); line-height: 1;
+    transition: color 0.3s ease;
   }
   .stat-num.warn { color: var(--accent2); }
   .stat-num.ok { color: var(--accent3); }
+  .stat-num.purple { color: var(--accent4); }
   .stat-lbl {
     font-family: var(--tech); font-size: 0.6rem;
     color: var(--muted); margin-top: 0.4rem;
     letter-spacing: 0.05em;
   }
+  .stat-delta {
+    font-family: var(--tech); font-size: 0.5rem;
+    color: var(--dim); margin-top: 0.25rem;
+    letter-spacing: 0.04em;
+  }
 
   /* ===================== SECTION ===================== */
-  .section {
-    margin-bottom: 2.5rem;
-  }
+  .section { margin-bottom: 2.5rem; }
   .section-label {
     font-family: var(--mono); font-size: 0.55rem;
     letter-spacing: 0.25em; color: var(--dim);
@@ -264,6 +434,9 @@
     border: 1px solid var(--border);
     margin-left: auto;
   }
+  .section-actions {
+    display: flex; gap: 0.5rem; margin-left: auto;
+  }
 
   /* ===================== CARDS ===================== */
   .card {
@@ -271,10 +444,9 @@
     border: 1px solid var(--border);
     padding: 1.5rem 1.8rem;
     position: relative;
-    transition: border-color 0.3s ease;
+    transition: border-color var(--transition);
   }
   .card:hover { border-color: var(--border-light); }
-
   .card-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.2rem;
@@ -307,17 +479,23 @@
     padding: 1rem 1.2rem;
     background: var(--bg); border: 1px solid var(--border);
     font-family: var(--mono); font-size: 0.7rem;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background 0.2s;
   }
-  .work-item:hover { border-color: var(--border-light); }
-  .work-item.overdue { border-color: var(--accent2); background: rgba(255,107,53,0.015); }
+  .work-item:hover { border-color: var(--border-light); background: var(--surface2); }
+  .work-item.overdue { border-color: var(--accent2); background: rgba(255,107,53,0.03); }
   .work-item .item-id { color: var(--accent); font-weight: 700; }
   .work-item .item-desc { color: var(--muted); font-size: 0.6rem; margin-top: 0.2rem; font-family: var(--tech); }
   .timer {
     font-size: 1.1rem; font-weight: 700; font-family: var(--mono);
     color: var(--accent3); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
   .timer.warn { color: var(--accent2); text-shadow: 0 0 8px rgba(255,107,53,0.3); }
+
+  /* Timer bar */
+  .timer-bar-wrap { width: 100%; height: 2px; background: var(--border); margin-top: 0.4rem; border-radius: 1px; overflow: hidden; }
+  .timer-bar-fill { height: 100%; transition: width 1s linear, background 1s linear; border-radius: 1px; }
+
   .checkin-btn {
     background: transparent; border: 1px solid var(--border);
     color: var(--muted); font-family: var(--mono); font-size: 0.55rem;
@@ -343,9 +521,9 @@
     flex: 1; background: var(--bg); border: 1px solid var(--border);
     color: var(--text); font-family: var(--tech); font-size: 0.72rem;
     padding: 0.75rem 1rem; outline: none;
-    transition: border-color 0.2s; letter-spacing: 0.05em;
+    transition: border-color 0.2s, box-shadow 0.2s; letter-spacing: 0.05em;
   }
-  .mono-input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,229,255,0.08); }
+  .mono-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,229,255,0.06); }
   .mono-input::placeholder { color: var(--dim); }
   .action-btn {
     background: var(--accent); color: var(--bg);
@@ -354,10 +532,15 @@
     cursor: pointer; transition: all 0.2s; white-space: nowrap; font-weight: 700;
   }
   .action-btn:hover { background: transparent; color: var(--accent); }
+  .action-btn:active { transform: scale(0.98); }
   .action-btn.secondary {
     background: transparent; color: var(--text); border-color: var(--border);
   }
   .action-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.danger {
+    background: var(--accent2); color: #fff; border-color: var(--accent2);
+  }
+  .action-btn.danger:hover { background: transparent; color: var(--accent2); }
   .form-result {
     font-family: var(--tech); font-size: 0.65rem; margin-top: 0.6rem;
     padding: 0.5rem 0.8rem; border-left: 2px solid; min-height: 1.6rem;
@@ -368,18 +551,18 @@
 
   /* ===================== ALERTS ===================== */
   .alert-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 500px; overflow-y: auto; }
-  .alert-list::-webkit-scrollbar { width: 2px; }
+  .alert-list::-webkit-scrollbar { width: 3px; }
   .alert-list::-webkit-scrollbar-track { background: transparent; }
-  .alert-list::-webkit-scrollbar-thumb { background: var(--border); }
+  .alert-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   .alert-row {
     display: grid; grid-template-columns: 170px 1fr auto;
     padding: 0.7rem 1rem; background: var(--bg);
     border: 1px solid var(--border); gap: 1.5rem; align-items: center;
     font-family: var(--tech); font-size: 0.65rem;
     animation: rowIn 0.25s ease both;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background 0.15s;
   }
-  .alert-row:hover { border-color: var(--border-light); }
+  .alert-row:hover { border-color: var(--border-light); background: var(--surface2); }
   @keyframes rowIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
   .alert-ts { color: var(--dim); }
   .alert-loc { color: var(--text); }
@@ -387,48 +570,85 @@
   .alert-status.MISSING { color: var(--accent2); }
   .alert-status.PRESENT { color: var(--accent3); }
 
+  /* Alert count bubble */
+  .alert-filter-count {
+    font-family: var(--tech); font-size: 0.55rem;
+    color: var(--dim); margin-left: auto;
+  }
+
   /* ALERT SUMMARY TABLE */
   .summary-table { width: 100%; border-collapse: collapse; }
   .summary-table th {
     font-family: var(--tech); font-size: 0.55rem;
     color: var(--dim); letter-spacing: 0.1em;
-    text-align: left; padding: 0.5rem 0.6rem;
-    border-bottom: 1px solid var(--border); text-transform: uppercase;
+    text-align: left; padding: 0.6rem 0.8rem;
+    border-bottom: 2px solid var(--border); text-transform: uppercase;
+    position: sticky; top: 0; background: var(--surface);
   }
   .summary-table td {
     font-family: var(--tech); font-size: 0.68rem;
-    padding: 0.6rem 0.6rem; border-bottom: 1px solid rgba(26,40,48,0.6);
+    padding: 0.6rem 0.8rem; border-bottom: 1px solid rgba(26,40,48,0.6);
     color: var(--text);
   }
   .summary-table tr:hover td { background: rgba(0,229,255,0.015); }
 
   /* ===================== LOCATIONS ===================== */
-  .loc-list { display: flex; flex-direction: column; gap: 0.8rem; }
-  .loc-list::-webkit-scrollbar { width: 2px; }
-  .loc-list::-webkit-scrollbar-thumb { background: var(--border); }
-  .loc-row { display: flex; flex-direction: column; gap: 0.35rem; }
-  .loc-header {
-    display: flex; justify-content: space-between;
-    font-family: var(--tech); font-size: 0.65rem;
+  .loc-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.8rem;
   }
-  .loc-name { color: var(--muted); }
-  .loc-pct { color: var(--text); font-size: 0.6rem; }
-  .loc-bar-bg { height: 3px; background: var(--border); width: 100%; }
-  .loc-bar-fill { height: 100%; transition: width 0.8s ease; }
-  .loc-bar-fill.high { background: var(--accent2); box-shadow: 0 0 4px rgba(255,107,53,0.2); }
+  .loc-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 1rem 1.2rem;
+    transition: border-color var(--transition);
+    cursor: default;
+  }
+  .loc-card:hover { border-color: var(--border-light); }
+  .loc-card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 0.8rem;
+  }
+  .loc-name {
+    font-family: var(--mono); font-size: 0.65rem;
+    color: var(--accent); font-weight: 700;
+  }
+  .loc-pct-badge {
+    font-family: var(--tech); font-size: 0.55rem;
+    font-weight: 700; padding: 0.1rem 0.45rem;
+    border: 1px solid;
+  }
+  .loc-pct-badge.high { color: var(--accent2); border-color: var(--accent2); }
+  .loc-pct-badge.mid { color: var(--accent); border-color: var(--accent); }
+  .loc-pct-badge.low { color: var(--accent3); border-color: var(--accent3); }
+  .loc-detail {
+    font-family: var(--tech); font-size: 0.58rem;
+    color: var(--muted); margin-bottom: 0.7rem;
+  }
+  .loc-bar-bg { height: 4px; background: var(--border); width: 100%; border-radius: 2px; overflow: hidden; }
+  .loc-bar-fill { height: 100%; transition: width 0.8s ease; border-radius: 2px; }
+  .loc-bar-fill.high { background: var(--accent2); box-shadow: 0 0 4px rgba(255,107,53,0.3); }
   .loc-bar-fill.mid { background: var(--accent); }
   .loc-bar-fill.low { background: var(--accent3); }
+
+  /* List view (legacy, hidden by default) */
+  .loc-list { display: flex; flex-direction: column; gap: 0.8rem; }
 
   /* ===================== ITEMS TABLE ===================== */
   .items-table { width: 100%; border-collapse: collapse; }
   .items-table th {
     font-family: var(--tech); font-size: 0.55rem; letter-spacing: 0.1em;
-    color: var(--dim); text-align: left; padding: 0.5rem 0.6rem;
-    border-bottom: 1px solid var(--border); text-transform: uppercase;
+    color: var(--dim); text-align: left; padding: 0.6rem 0.8rem;
+    border-bottom: 2px solid var(--border); text-transform: uppercase;
+    position: sticky; top: 0; background: var(--surface);
+    cursor: pointer; user-select: none;
+    transition: color var(--transition);
   }
+  .items-table th:hover { color: var(--text); }
+  .items-table th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+  .items-table th.sort-desc::after { content: ' ↓'; color: var(--accent); }
   .items-table td {
     font-family: var(--tech); font-size: 0.68rem;
-    padding: 0.6rem 0.6rem; border-bottom: 1px solid rgba(26,40,48,0.5);
+    padding: 0.65rem 0.8rem; border-bottom: 1px solid rgba(26,40,48,0.5);
     color: var(--text);
   }
   .items-table tbody tr:hover td { background: rgba(0,229,255,0.015); }
@@ -440,16 +660,42 @@
   .badge-orange { border-color: var(--accent2); color: var(--accent2); }
   .badge-muted { border-color: var(--dim); color: var(--dim); }
 
-  /* ===================== DIVIDER ===================== */
-  .divider {
-    height: 1px; background: var(--border);
-    margin: 2rem 0;
+  /* ===================== HISTORY LOG ===================== */
+  .history-list { display: flex; flex-direction: column; gap: 0.35rem; max-height: 320px; overflow-y: auto; }
+  .history-list::-webkit-scrollbar { width: 3px; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); }
+  .history-row {
+    display: grid; grid-template-columns: 160px 1fr auto auto;
+    gap: 1rem; align-items: center;
+    padding: 0.55rem 0.9rem;
+    background: var(--bg); border: 1px solid var(--border);
+    font-family: var(--tech); font-size: 0.62rem;
+    animation: rowIn 0.2s ease both;
   }
+  .history-row .h-time { color: var(--dim); }
+  .history-row .h-part { color: var(--accent); font-weight: 700; }
+  .history-row .h-dur { color: var(--text); }
+  .history-row .h-status { font-weight: 700; }
+  .history-row .h-status.on-time { color: var(--accent3); }
+  .history-row .h-status.late { color: var(--accent2); }
+
+  /* ===================== KEYBOARD SHORTCUTS ===================== */
+  .shortcuts-hint {
+    position: fixed; bottom: 1rem; left: calc(var(--sidebar-w) + 1rem);
+    font-family: var(--tech); font-size: 0.5rem;
+    color: var(--dim); letter-spacing: 0.08em;
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .shortcuts-hint.visible { opacity: 1; }
+
+  /* ===================== DIVIDER ===================== */
+  .divider { height: 1px; background: var(--border); margin: 2rem 0; }
 
   /* ===================== RESPONSIVE ===================== */
   @media (max-width: 1024px) {
     .two-col { grid-template-columns: 1fr; }
-    .stat-strip { flex-wrap: wrap; gap: 1.5rem; }
+    .stat-strip { flex-wrap: wrap; }
   }
   @media (max-width: 768px) {
     .sidebar { transform: translateX(-100%); z-index: 300; }
@@ -460,10 +706,33 @@
     .topbar { padding-top: 3.5rem; }
     .alert-row { grid-template-columns: 1fr auto; }
     .alert-ts { display: none; }
+    .loc-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .history-row { grid-template-columns: 1fr auto auto; }
+    .history-row .h-time { display: none; }
   }
 </style>
 </head>
 <body>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- CHECKOUT MODAL -->
+<div class="modal-overlay" id="checkout-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Confirm Checkout</div>
+    <div class="modal-body" id="modal-body">
+      Check out <span class="highlight" id="modal-part">—</span>?<br>
+      <span id="modal-item-desc" style="margin-top:0.5rem;display:block"></span>
+      A <strong style="color:var(--text)">15-minute</strong> timer will start immediately.
+    </div>
+    <div class="modal-actions">
+      <button class="action-btn secondary" onclick="closeModal()">CANCEL</button>
+      <button class="action-btn" id="modal-confirm-btn">CONFIRM</button>
+    </div>
+  </div>
+</div>
 
 <!-- LOADER -->
 <div id="loader">
@@ -475,35 +744,52 @@
 <!-- MOBILE TOGGLE -->
 <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
 
+<!-- KEYBOARD SHORTCUT HINT -->
+<div class="shortcuts-hint" id="shortcuts-hint">PRESS 1–5 TO SWITCH VIEWS</div>
+
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-header">
     <div class="sidebar-logo">TRACKIT<span>_</span>WAREHOUSE<span>.</span>SYS</div>
-    <div class="sidebar-version">v1.0 · TRACKIT</div>
+    <div class="sidebar-version">v1.1 · TRACKIT</div>
   </div>
 
   <div class="sidebar-nav">
     <div class="nav-section-label">Views</div>
     <button class="nav-item active" data-view="overview" onclick="switchView('overview')">
       <span class="nav-icon">◈</span> Overview
+      <span class="nav-kb">1</span>
     </button>
     <button class="nav-item" data-view="cv" onclick="switchView('cv')">
       <span class="nav-icon">◎</span> CV Alerts
+      <span class="nav-badge" id="nav-alert-badge">0</span>
+      <span class="nav-kb">2</span>
     </button>
 
     <div class="nav-section-label" style="margin-top: 0.5rem;">Operations</div>
     <button class="nav-item" data-view="workarea" onclick="switchView('workarea')">
       <span class="nav-icon">▣</span> Work Area
+      <span class="nav-kb">3</span>
     </button>
     <button class="nav-item" data-view="inventory" onclick="switchView('inventory')">
       <span class="nav-icon">≡</span> Inventory
+      <span class="nav-kb">4</span>
     </button>
     <button class="nav-item" data-view="locations" onclick="switchView('locations')">
       <span class="nav-icon">⊞</span> Locations
+      <span class="nav-kb">5</span>
+    </button>
+    <button class="nav-item" data-view="history" onclick="switchView('history')">
+      <span class="nav-icon">⊙</span> History
+      <span class="nav-kb">6</span>
     </button>
   </div>
 
   <div class="sidebar-footer">
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
+      <span class="theme-toggle-icon" id="theme-icon">☀</span>
+      <span id="theme-label">LIGHT MODE</span>
+    </button>
     <div class="conn-status">
       <span class="dot-live" id="conn-dot"></span>
       <span id="conn-label">LIVE</span>
@@ -522,7 +808,9 @@
         <div class="page-title">System Overview</div>
         <div class="page-subtitle">All subsystems at a glance</div>
       </div>
-      <div class="topbar-right">AUTO-REFRESH 5s</div>
+      <div class="topbar-right">
+        <span class="topbar-tag">AUTO-REFRESH 5s</span>
+      </div>
     </div>
     <div class="content">
       <div class="stat-strip">
@@ -535,12 +823,12 @@
           <div class="stat-lbl">Locations</div>
         </div>
         <div class="stat-block">
-          <div class="stat-num" id="v-work">—</div>
+          <div class="stat-num purple" id="v-work">—</div>
           <div class="stat-lbl">In Work Area</div>
         </div>
         <div class="stat-block">
           <div class="stat-num warn" id="v-alerts">—</div>
-          <div class="stat-lbl">CV Alerts</div>
+          <div class="stat-lbl">CV Alerts (recent)</div>
         </div>
       </div>
 
@@ -552,7 +840,10 @@
           </div>
         </div>
         <div class="section">
-          <div class="section-label">Recent CV Alerts <span class="tag">LAST 8</span></div>
+          <div class="section-label">
+            Recent CV Alerts
+            <span class="tag">LAST 8</span>
+          </div>
           <div class="alert-list" id="alert-list-overview" style="max-height: 320px;">
             <div class="empty-state">No alerts.</div>
           </div>
@@ -568,7 +859,10 @@
         <div class="page-title">Computer Vision Alerts</div>
         <div class="page-subtitle">Monitoring feed from CV subsystem</div>
       </div>
-      <div class="topbar-right">alerts-compvis.csv</div>
+      <div class="topbar-right">
+        <button class="topbar-btn" onclick="exportAlerts()">↓ EXPORT CSV</button>
+        <span class="topbar-tag">alerts-compvis.csv</span>
+      </div>
     </div>
     <div class="content">
       <div class="stat-strip">
@@ -584,13 +878,22 @@
           <div class="stat-num ok" id="v-cv-present">—</div>
           <div class="stat-lbl">Present</div>
         </div>
+        <div class="stat-block">
+          <div class="stat-num" id="v-cv-filtered">—</div>
+          <div class="stat-lbl">Filtered Results</div>
+        </div>
       </div>
 
       <div class="two-col">
         <div class="section">
-          <div class="section-label">Alert Log <span class="tag">ALL</span></div>
-          <div style="margin-bottom: 1rem;">
-            <input class="mono-input" id="alert-search" placeholder="Filter by location or status..." oninput="filterAlerts()" style="width: 100%;" />
+          <div class="section-label">
+            Alert Log
+            <span class="alert-filter-count" id="alert-filter-count"></span>
+            <span class="tag">ALL</span>
+          </div>
+          <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+            <input class="mono-input" id="alert-search" placeholder="Filter by location or status..." oninput="filterAlerts()" style="flex: 1;" />
+            <button class="topbar-btn" onclick="clearAlertFilter()" title="Clear filter">✕</button>
           </div>
           <div class="alert-list" id="alert-list-cv">
             <div class="empty-state">No alerts loaded.</div>
@@ -598,14 +901,16 @@
         </div>
         <div class="section">
           <div class="section-label">Breakdown by Location</div>
-          <table class="summary-table" id="alert-breakdown">
-            <thead>
-              <tr><th>Location</th><th>Missing</th><th>Present</th></tr>
-            </thead>
-            <tbody id="alert-breakdown-body">
-              <tr><td colspan="3" style="color: var(--dim); text-align: center;">No data.</td></tr>
-            </tbody>
-          </table>
+          <div style="overflow-x: auto;">
+            <table class="summary-table" id="alert-breakdown">
+              <thead>
+                <tr><th>Location</th><th>Missing</th><th>Present</th><th>Total</th></tr>
+              </thead>
+              <tbody id="alert-breakdown-body">
+                <tr><td colspan="4" style="color: var(--dim); text-align: center;">No data.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -618,13 +923,19 @@
         <div class="page-title">Work Area</div>
         <div class="page-subtitle">Checked-out items and timers</div>
       </div>
-      <div class="topbar-right">AUTO-REFRESH 5s</div>
+      <div class="topbar-right">
+        <span class="topbar-tag">AUTO-REFRESH 5s</span>
+      </div>
     </div>
     <div class="content">
       <div class="stat-strip">
         <div class="stat-block">
-          <div class="stat-num" id="v-work-wa">—</div>
+          <div class="stat-num purple" id="v-work-wa">—</div>
           <div class="stat-lbl">Active Items</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num warn" id="v-work-overdue">—</div>
+          <div class="stat-lbl">Overdue</div>
         </div>
       </div>
 
@@ -642,8 +953,8 @@
           <div class="section-label">Check Out</div>
           <div class="card-desc">Enter a part number to check an item out. A 15-minute timer starts automatically.</div>
           <div class="input-row">
-            <input class="mono-input" id="checkout-input" placeholder="PART NUMBER" />
-            <button class="action-btn" onclick="doCheckout('checkout-input','checkout-result')">CHECK OUT</button>
+            <input class="mono-input" id="checkout-input" placeholder="PART NUMBER" autocomplete="off" />
+            <button class="action-btn" onclick="initiateCheckout()">CHECK OUT</button>
           </div>
           <div class="form-result idle" id="checkout-result"></div>
         </div>
@@ -651,7 +962,7 @@
           <div class="section-label">Check In</div>
           <div class="card-desc">Return an item to storage. Timer stops and elapsed time is logged.</div>
           <div class="input-row">
-            <input class="mono-input" id="checkin-input" placeholder="PART NUMBER" />
+            <input class="mono-input" id="checkin-input" placeholder="PART NUMBER" autocomplete="off" />
             <button class="action-btn secondary" onclick="doCheckin('checkin-input','checkin-result')">CHECK IN</button>
           </div>
           <div class="form-result idle" id="checkin-result"></div>
@@ -667,7 +978,9 @@
         <div class="page-title">Inventory</div>
         <div class="page-subtitle">Full item catalog</div>
       </div>
-      <div class="topbar-right">items_with_area.csv</div>
+      <div class="topbar-right">
+        <span class="topbar-tag">items_with_area.csv</span>
+      </div>
     </div>
     <div class="content">
       <div class="stat-strip">
@@ -675,26 +988,36 @@
           <div class="stat-num" id="v-items-inv">—</div>
           <div class="stat-lbl">Total Items</div>
         </div>
+        <div class="stat-block">
+          <div class="stat-num" id="v-items-filtered">—</div>
+          <div class="stat-lbl">Showing</div>
+        </div>
       </div>
 
       <div class="section">
-        <div style="margin-bottom: 1rem;">
-          <input class="mono-input" id="search-input" placeholder="Search part number or description..." oninput="searchItems()" style="width: 100%; max-width: 480px;" />
+        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <input class="mono-input" id="search-input" placeholder="Search part number or description..." oninput="searchItems()" style="flex: 1; min-width: 220px;" />
+          <select class="mono-input" id="status-filter" onchange="searchItems()" style="flex: 0 0 auto; width: auto; cursor: pointer;">
+            <option value="">All Statuses</option>
+            <option value="IN STORAGE">In Storage</option>
+            <option value="WORK AREA">Work Area</option>
+            <option value="UNASSIGNED">Unassigned</option>
+          </select>
         </div>
         <div style="overflow-x: auto;">
           <table class="items-table">
             <thead>
               <tr>
-                <th>Part Number</th>
-                <th>Description</th>
-                <th>Area (ft²)</th>
-                <th>Price</th>
-                <th>Location</th>
+                <th onclick="sortItems('partNumber')" data-col="partNumber">Part Number</th>
+                <th onclick="sortItems('description')" data-col="description">Description</th>
+                <th onclick="sortItems('area')" data-col="area">Area (ft²)</th>
+                <th onclick="sortItems('price')" data-col="price">Price</th>
+                <th onclick="sortItems('location')" data-col="location">Location</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody id="items-tbody">
-              <tr><td colspan="6" style="color: var(--dim); text-align: center;">Loading...</td></tr>
+              <tr><td colspan="6" style="color: var(--dim); text-align: center; padding: 2rem;">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -709,6 +1032,9 @@
         <div class="page-title">Location Capacity</div>
         <div class="page-subtitle">Storage utilization by location</div>
       </div>
+      <div class="topbar-right">
+        <button class="topbar-btn" id="loc-sort-btn" onclick="toggleLocSort()">SORT: DEFAULT</button>
+      </div>
     </div>
     <div class="content">
       <div class="stat-strip">
@@ -716,11 +1042,55 @@
           <div class="stat-num" id="v-locs-loc">—</div>
           <div class="stat-lbl">Total Locations</div>
         </div>
+        <div class="stat-block">
+          <div class="stat-num warn" id="v-locs-high">—</div>
+          <div class="stat-lbl">High Capacity (&gt;80%)</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num ok" id="v-locs-low">—</div>
+          <div class="stat-lbl">Available (&lt;40%)</div>
+        </div>
       </div>
 
-      <div class="section" style="max-width: 600px;">
-        <div class="loc-list" id="loc-list-main">
-          <div class="empty-state">Loading...</div>
+      <div class="section">
+        <div class="loc-grid" id="loc-grid-main">
+          <div class="empty-state" style="grid-column:1/-1">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== HISTORY ============== -->
+  <div class="view-panel" id="panel-history">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Checkout History</div>
+        <div class="page-subtitle">Session log of check-ins and check-outs</div>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn" onclick="clearHistory()">✕ CLEAR LOG</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="stat-strip">
+        <div class="stat-block">
+          <div class="stat-num" id="v-hist-total">0</div>
+          <div class="stat-lbl">Total Transactions</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num warn" id="v-hist-late">0</div>
+          <div class="stat-lbl">Late Returns</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-num ok" id="v-hist-ontime">0</div>
+          <div class="stat-lbl">On-Time Returns</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Transaction Log <span class="tag">SESSION ONLY</span></div>
+        <div class="history-list" id="history-list">
+          <div class="empty-state">No transactions this session.</div>
         </div>
       </div>
     </div>
@@ -733,23 +1103,104 @@
   let connected = false;
   let workTimers = {};
   let allAlerts = [];
+  let allItems = [];
   let currentView = 'overview';
+  let locSortMode = 'default'; // default | asc | desc
+  let sortCol = null;
+  let sortDir = 'asc';
+  let pendingCheckoutPart = null;
+  let locData = [];
 
-  // ---- VIEW SWITCHING ----
+  // ===================== SESSION HISTORY =====================
+  let checkinHistory = JSON.parse(sessionStorage.getItem('trackit_history') || '[]');
+  function saveHistory() { sessionStorage.setItem('trackit_history', JSON.stringify(checkinHistory)); }
+
+  // ===================== THEME =====================
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.getElementById('theme-icon').textContent = isDark ? '☾' : '☀';
+    document.getElementById('theme-label').textContent = isDark ? 'DARK MODE' : 'LIGHT MODE';
+    showToast(isDark ? 'Light mode activated' : 'Dark mode activated', 'info');
+  }
+
+  // ===================== TOAST =====================
+  function showToast(msg, type = 'ok') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type === 'error' ? 'error' : type === 'warn' ? 'warn' : ''}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('fade-out');
+      setTimeout(() => t.remove(), 350);
+    }, 3000);
+  }
+
+  // ===================== MODAL =====================
+  function initiateCheckout() {
+    const input = document.getElementById('checkout-input');
+    const pn = input.value.trim().toUpperCase();
+    if (!pn) return;
+    const item = allItems.find(i => i.partNumber === pn);
+    pendingCheckoutPart = pn;
+    document.getElementById('modal-part').textContent = pn;
+    document.getElementById('modal-item-desc').textContent = item
+      ? `${item.description} · $${Number(item.price||0).toLocaleString()}`
+      : 'Item details unavailable.';
+    document.getElementById('modal-confirm-btn').onclick = () => { closeModal(); doCheckoutConfirmed('checkout-input', 'checkout-result'); };
+    document.getElementById('checkout-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('checkout-modal').classList.remove('open');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('checkout-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('checkout-modal')) closeModal();
+  });
+
+  // ===================== VIEW SWITCHING =====================
+  const viewKeys = ['overview','cv','workarea','inventory','locations','history'];
   function switchView(view) {
     currentView = view;
     document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.nav-item[data-view="${view}"]`).classList.add('active');
+    const navItem = document.querySelector(`.nav-item[data-view="${view}"]`);
+    if (navItem) navItem.classList.add('active');
     document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
     const panel = document.getElementById(`panel-${view}`);
-    panel.classList.remove('active');
-    void panel.offsetWidth;
-    panel.classList.add('active');
-    // Close mobile sidebar
-    document.querySelector('.sidebar').classList.remove('open');
+    if (panel) {
+      panel.classList.remove('active');
+      void panel.offsetWidth;
+      panel.classList.add('active');
+    }
+    document.querySelector('.sidebar')?.classList.remove('open');
+    if (view === 'history') renderHistory();
   }
 
-  // ---- CLOCK ----
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    // Don't trigger when typing in an input
+    if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= 6) switchView(viewKeys[n - 1]);
+    if (e.key === '?') {
+      const hint = document.getElementById('shortcuts-hint');
+      hint.classList.toggle('visible');
+    }
+    if (e.key === 'Escape') { closeModal(); document.querySelector('.sidebar')?.classList.remove('open'); }
+  });
+
+  // Show shortcuts hint briefly on load
+  setTimeout(() => {
+    const hint = document.getElementById('shortcuts-hint');
+    hint.classList.add('visible');
+    setTimeout(() => hint.classList.remove('visible'), 3500);
+  }, 2500);
+
+  // ===================== CLOCK =====================
   function updateClock() {
     const now = new Date();
     document.getElementById('clock').textContent =
@@ -759,21 +1210,13 @@
   setInterval(updateClock, 1000);
   updateClock();
 
-  // ---- LOADER ----
-  const bootLines = [
-    '> kernel init...',
-    '> loading modules...',
-    '> syncing inventory...',
-    '> cv subsystem online...',
-    '> READY',
-  ];
+  // ===================== LOADER =====================
+  const bootLines = ['> kernel init...','> loading modules...','> syncing inventory...','> cv subsystem online...','> READY'];
   const loaderEl = document.getElementById('loader-lines');
-  bootLines.forEach((line, i) => {
-    setTimeout(() => { loaderEl.innerHTML += line + '<br>'; }, i * 320);
-  });
+  bootLines.forEach((line, i) => { setTimeout(() => { loaderEl.innerHTML += line + '<br>'; }, i * 320); });
   setTimeout(() => document.getElementById('loader').classList.add('hidden'), 1900);
 
-  // ---- CONNECTION ----
+  // ===================== CONNECTION =====================
   function setConnected(ok) {
     connected = ok;
     const dot = document.getElementById('conn-dot');
@@ -782,7 +1225,7 @@
     label.textContent = ok ? 'LIVE' : 'OFFLINE';
   }
 
-  // ---- MAIN FETCH ----
+  // ===================== MAIN FETCH =====================
   async function fetchStatus() {
     try {
       const res = await fetch(`${API}/status`);
@@ -795,10 +1238,11 @@
       renderAlerts(data.recentAlerts);
       renderLocations(data.locations);
       renderCVStats(data.recentAlerts);
+      updateNavBadge(data.recentAlerts);
     } catch (e) { setConnected(false); }
   }
 
-  // ---- STATS ----
+  // ===================== STATS =====================
   function renderStats(s) {
     setStat('v-items', s.totalItems);
     setStat('v-locs', s.totalLocations);
@@ -810,16 +1254,31 @@
   }
   function setStat(id, val) {
     const el = document.getElementById(id);
-    if (el && el.textContent !== String(val)) el.textContent = val;
+    if (el && el.textContent !== String(val)) {
+      el.textContent = val;
+      el.style.animation = 'none'; void el.offsetWidth;
+      el.style.animation = '';
+    }
   }
 
-  // ---- CV STATS ----
+  // ===================== NAV BADGE =====================
+  function updateNavBadge(alerts) {
+    const missing = alerts.filter(a => a.status === 'MISSING').length;
+    const badge = document.getElementById('nav-alert-badge');
+    if (badge) {
+      badge.textContent = missing;
+      badge.classList.toggle('visible', missing > 0);
+    }
+  }
+
+  // ===================== CV STATS =====================
   function renderCVStats(alerts) {
     const missing = alerts.filter(a => a.status === 'MISSING').length;
     const present = alerts.filter(a => a.status === 'PRESENT').length;
     setStat('v-cv-total', alerts.length);
     setStat('v-cv-missing', missing);
     setStat('v-cv-present', present);
+    setStat('v-cv-filtered', alerts.length);
 
     const byLoc = {};
     alerts.forEach(a => {
@@ -830,9 +1289,9 @@
     });
 
     const tbody = document.getElementById('alert-breakdown-body');
-    const entries = Object.entries(byLoc);
+    const entries = Object.entries(byLoc).sort((a,b) => (b[1].missing - a[1].missing));
     if (!entries.length) {
-      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--dim);text-align:center;">No data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--dim);text-align:center;">No data.</td></tr>';
       return;
     }
     tbody.innerHTML = entries.map(([loc, c]) => `
@@ -840,29 +1299,40 @@
         <td>${loc}</td>
         <td style="color:${c.missing > 0 ? 'var(--accent2)' : 'var(--dim)'}; font-weight:${c.missing > 0 ? '700' : '400'}">${c.missing}</td>
         <td style="color:var(--accent3)">${c.present}</td>
+        <td style="color:var(--muted)">${c.missing + c.present}</td>
       </tr>
     `).join('');
   }
 
-  // ---- WORK AREA ----
+  // ===================== WORK AREA =====================
   function renderWorkArea(items) {
+    const overdue = items.filter(i => i.overdue).length;
+    setStat('v-work-overdue', overdue);
+
     ['work-items-overview', 'work-items-wa'].forEach(cId => {
       const c = document.getElementById(cId);
       if (!c) return;
       if (!items.length) { c.innerHTML = '<div class="empty-state">Work area is empty.</div>'; return; }
-      c.innerHTML = items.map(item => `
+      c.innerHTML = items.map(item => {
+        const pct = item.secondsLeft / 900 * 100;
+        const barClass = item.overdue ? 'high' : pct < 30 ? 'high' : pct < 60 ? 'mid' : 'low';
+        return `
         <div class="work-item ${item.overdue ? 'overdue' : ''}" id="wi-${item.partNumber}-${cId}">
           <div>
             <div class="item-id">${item.partNumber}</div>
             <div class="item-desc">${item.description || '—'} · $${Number(item.price||0).toLocaleString()}</div>
+            <div class="timer-bar-wrap">
+              <div class="timer-bar-fill ${barClass}" id="tbar-${item.partNumber}-${cId}" style="width:${item.overdue?0:pct}%"></div>
+            </div>
           </div>
           <div class="timer ${item.overdue ? 'warn' : ''}" id="timer-${item.partNumber}-${cId}">
             ${fmtTime(item.secondsLeft, item.overdue, item.minutesElapsed)}
           </div>
           <button class="checkin-btn" onclick="quickCheckin('${item.partNumber}')">CHECK IN</button>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     });
+
     items.forEach(item => {
       clearInterval(workTimers[item.partNumber]);
       const checkedAt = Date.now() - (item.minutesElapsed * 60000);
@@ -870,9 +1340,16 @@
         const elapsed = Math.floor((Date.now() - checkedAt) / 1000);
         const sLeft = Math.max(0, 900 - elapsed);
         const overdue = elapsed > 900;
+        const pct = sLeft / 900 * 100;
+        const barClass = overdue ? 'high' : pct < 30 ? 'high' : pct < 60 ? 'mid' : 'low';
+
         document.querySelectorAll(`[id^="timer-${item.partNumber}-"]`).forEach(el => {
           el.textContent = fmtTime(sLeft, overdue, Math.floor(elapsed / 60));
           el.className = `timer ${overdue ? 'warn' : ''}`;
+        });
+        document.querySelectorAll(`[id^="tbar-${item.partNumber}-"]`).forEach(el => {
+          el.style.width = `${overdue ? 0 : pct}%`;
+          el.className = `timer-bar-fill ${barClass}`;
         });
         document.querySelectorAll(`[id^="wi-${item.partNumber}-"]`).forEach(wi => {
           wi.className = `work-item ${overdue ? 'overdue' : ''}`;
@@ -880,12 +1357,13 @@
       }, 1000);
     });
   }
+
   function fmtTime(sLeft, overdue, mElapsed) {
     if (overdue) return `+${mElapsed - 15}m OVERDUE`;
     return `${String(Math.floor(sLeft/60)).padStart(2,'0')}:${String(sLeft%60).padStart(2,'0')}`;
   }
 
-  // ---- ALERTS ----
+  // ===================== ALERTS =====================
   function renderAlerts(alerts) {
     renderAlertList('alert-list-overview', alerts.slice(0, 8));
     renderAlertList('alert-list-cv', alerts);
@@ -908,40 +1386,106 @@
       (a.location||'').toLowerCase().includes(q) || (a.status||'').toLowerCase().includes(q)
     );
     renderAlertList('alert-list-cv', filtered);
+    setStat('v-cv-filtered', filtered.length);
+    const countEl = document.getElementById('alert-filter-count');
+    if (countEl) countEl.textContent = q ? `${filtered.length} of ${allAlerts.length}` : '';
+  }
+  function clearAlertFilter() {
+    document.getElementById('alert-search').value = '';
+    filterAlerts();
+  }
+  function exportAlerts() {
+    if (!allAlerts.length) { showToast('No alerts to export', 'warn'); return; }
+    const rows = [['Timestamp','Location','Status'], ...allAlerts.map(a => [a.timestamp||'', a.location||'', a.status||''])];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `trackit-alerts-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('Alerts exported to CSV');
   }
 
-  // ---- LOCATIONS ----
+  // ===================== LOCATIONS =====================
+  let locSortDir = 'default';
+  function toggleLocSort() {
+    locSortDir = locSortDir === 'default' ? 'desc' : locSortDir === 'desc' ? 'asc' : 'default';
+    document.getElementById('loc-sort-btn').textContent =
+      `SORT: ${locSortDir === 'default' ? 'DEFAULT' : locSortDir === 'desc' ? 'HIGHEST' : 'LOWEST'}`;
+    renderLocGrid(locData);
+  }
+
   function renderLocations(locs) {
-    const el = document.getElementById('loc-list-main');
+    locData = locs;
+    const high = locs.filter(l => l.pct > 80).length;
+    const low = locs.filter(l => l.pct < 40).length;
+    setStat('v-locs-high', high);
+    setStat('v-locs-low', low);
+    renderLocGrid(locs);
+  }
+
+  function renderLocGrid(locs) {
+    const el = document.getElementById('loc-grid-main');
     if (!el) return;
-    if (!locs.length) { el.innerHTML = '<div class="empty-state">No location data.</div>'; return; }
-    el.innerHTML = locs.map(loc => {
+    let sorted = [...locs];
+    if (locSortDir === 'desc') sorted.sort((a,b) => b.pct - a.pct);
+    else if (locSortDir === 'asc') sorted.sort((a,b) => a.pct - b.pct);
+
+    if (!sorted.length) { el.innerHTML = '<div class="empty-state">No location data.</div>'; return; }
+    el.innerHTML = sorted.map(loc => {
       const cls = loc.pct > 80 ? 'high' : loc.pct > 40 ? 'mid' : 'low';
       return `
-        <div class="loc-row">
-          <div class="loc-header">
-            <span class="loc-name">LOC ${loc.location}</span>
-            <span class="loc-pct">${loc.usedArea}/${loc.totalArea} ft² · <strong>${loc.pct}%</strong></span>
+        <div class="loc-card">
+          <div class="loc-card-header">
+            <div class="loc-name">LOC ${loc.location}</div>
+            <div class="loc-pct-badge ${cls}">${loc.pct}%</div>
           </div>
-          <div class="loc-bar-bg"><div class="loc-bar-fill ${cls}" style="width:${loc.pct}%"></div></div>
-        </div>
-      `;
+          <div class="loc-detail">${loc.usedArea} / ${loc.totalArea} ft²</div>
+          <div class="loc-bar-bg">
+            <div class="loc-bar-fill ${cls}" style="width:${loc.pct}%"></div>
+          </div>
+        </div>`;
     }).join('');
   }
 
-  // ---- ITEMS ----
+  // ===================== ITEMS =====================
   async function searchItems() {
     const q = document.getElementById('search-input').value;
+    const statusFilter = document.getElementById('status-filter')?.value || '';
     try {
       const res = await fetch(`${API}/items?search=${encodeURIComponent(q)}`);
       const data = await res.json();
-      renderItems(data.items);
+      allItems = data.items;
+      let filtered = data.items;
+      if (statusFilter) filtered = filtered.filter(i => i.status === statusFilter);
+      if (sortCol) {
+        filtered = [...filtered].sort((a,b) => {
+          let va = a[sortCol] || '', vb = b[sortCol] || '';
+          if (!isNaN(va) && !isNaN(vb)) { va = parseFloat(va); vb = parseFloat(vb); }
+          if (va < vb) return sortDir === 'asc' ? -1 : 1;
+          if (va > vb) return sortDir === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+      renderItems(filtered, data.items.length);
     } catch (e) {}
   }
-  function renderItems(items) {
+
+  function sortItems(col) {
+    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortCol = col; sortDir = 'asc'; }
+    document.querySelectorAll('.items-table th').forEach(th => {
+      th.classList.remove('sort-asc','sort-desc');
+      if (th.dataset.col === col) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    });
+    searchItems();
+  }
+
+  function renderItems(items, total) {
+    setStat('v-items-filtered', items.length);
     const tbody = document.getElementById('items-tbody');
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--dim);text-align:center;">No items found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--dim);text-align:center;padding:2rem;">No items found.</td></tr>';
       return;
     }
     tbody.innerHTML = items.map(item => {
@@ -952,7 +1496,7 @@
         : '<span class="badge badge-muted">UNASSIGNED</span>';
       return `<tr>
         <td style="color:var(--accent)">${item.partNumber}</td>
-        <td style="color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.description}</td>
+        <td style="color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.description}">${item.description}</td>
         <td>${item.area}</td>
         <td>$${Number(item.price||0).toLocaleString()}</td>
         <td>${item.location}</td>
@@ -961,8 +1505,8 @@
     }).join('');
   }
 
-  // ---- CHECKOUT / CHECKIN ----
-  async function doCheckout(inputId, resultId) {
+  // ===================== CHECKOUT / CHECKIN =====================
+  async function doCheckoutConfirmed(inputId, resultId) {
     const input = document.getElementById(inputId);
     const result = document.getElementById(resultId);
     const pn = input.value.trim().toUpperCase();
@@ -976,9 +1520,19 @@
       if (res.ok) {
         result.textContent = `${pn} checked out — 15-min timer started.`;
         result.className = 'form-result ok';
-        input.value = ''; fetchStatus();
-      } else { result.textContent = data.error||'Error'; result.className = 'form-result err'; }
-    } catch (e) { result.textContent = 'Server unreachable.'; result.className = 'form-result err'; }
+        input.value = '';
+        showToast(`${pn} checked out`, 'ok');
+        fetchStatus(); searchItems();
+      } else {
+        result.textContent = data.error || 'Error';
+        result.className = 'form-result err';
+        showToast(data.error || 'Checkout failed', 'error');
+      }
+    } catch (e) {
+      result.textContent = 'Server unreachable.';
+      result.className = 'form-result err';
+      showToast('Server unreachable', 'error');
+    }
     setTimeout(() => result.className = 'form-result idle', 4000);
   }
 
@@ -987,13 +1541,15 @@
     const result = document.getElementById(resultId);
     const pn = input.value.trim().toUpperCase();
     if (!pn) return;
-    checkinPN(pn, result, inputId);
+    await checkinPN(pn, result, inputId);
   }
+
   async function quickCheckin(pn) {
     const rId = currentView === 'workarea' ? 'checkin-result' : 'checkout-result';
     const result = document.getElementById(rId);
-    if (result) checkinPN(pn, result, null);
+    if (result) await checkinPN(pn, result, null);
   }
+
   async function checkinPN(pn, result, clearId) {
     try {
       const res = await fetch(`${API}/checkin`, {
@@ -1003,26 +1559,84 @@
       const data = await res.json();
       clearInterval(workTimers[pn]);
       if (res.ok) {
-        result.textContent = data.overdue
+        // Log to history
+        checkinHistory.unshift({
+          time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          partNumber: pn,
+          minutesElapsed: data.minutesElapsed,
+          overdue: data.overdue,
+        });
+        if (checkinHistory.length > 100) checkinHistory.pop();
+        saveHistory();
+        updateHistoryStats();
+
+        const msg = data.overdue
           ? `${pn} checked in — ${data.minutesElapsed}m elapsed. LATE.`
           : `${pn} checked in on time. (${data.minutesElapsed}m)`;
+        result.textContent = msg;
         result.className = data.overdue ? 'form-result err' : 'form-result ok';
+        showToast(msg, data.overdue ? 'warn' : 'ok');
         if (clearId) document.getElementById(clearId).value = '';
-        fetchStatus();
-      } else { result.textContent = data.error||'Error'; result.className = 'form-result err'; }
-    } catch (e) { result.textContent = 'Server unreachable.'; result.className = 'form-result err'; }
+        fetchStatus(); searchItems();
+      } else {
+        result.textContent = data.error || 'Error';
+        result.className = 'form-result err';
+        showToast(data.error || 'Check-in failed', 'error');
+      }
+    } catch (e) {
+      result.textContent = 'Server unreachable.';
+      result.className = 'form-result err';
+      showToast('Server unreachable', 'error');
+    }
     setTimeout(() => result.className = 'form-result idle', 5000);
   }
 
-  // ---- ENTER KEY ----
-  document.querySelectorAll('.mono-input').forEach(input => {
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { const btn = input.parentElement.querySelector('.action-btn'); if (btn) btn.click(); }
-    });
+  // ===================== HISTORY =====================
+  function updateHistoryStats() {
+    const late = checkinHistory.filter(h => h.overdue).length;
+    const ontime = checkinHistory.filter(h => !h.overdue).length;
+    setStat('v-hist-total', checkinHistory.length);
+    setStat('v-hist-late', late);
+    setStat('v-hist-ontime', ontime);
+  }
+
+  function renderHistory() {
+    updateHistoryStats();
+    const el = document.getElementById('history-list');
+    if (!el) return;
+    if (!checkinHistory.length) {
+      el.innerHTML = '<div class="empty-state">No transactions this session.</div>';
+      return;
+    }
+    el.innerHTML = checkinHistory.map(h => `
+      <div class="history-row">
+        <span class="h-time">${h.time}</span>
+        <span class="h-part">${h.partNumber}</span>
+        <span class="h-dur">${h.minutesElapsed}m elapsed</span>
+        <span class="h-status ${h.overdue ? 'late' : 'on-time'}">${h.overdue ? 'LATE' : 'ON TIME'}</span>
+      </div>
+    `).join('');
+  }
+
+  function clearHistory() {
+    checkinHistory = [];
+    saveHistory();
+    renderHistory();
+    showToast('History cleared');
+  }
+
+  // ===================== ENTER KEY =====================
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const active = document.activeElement;
+    if (active.id === 'checkout-input') initiateCheckout();
+    else if (active.id === 'checkin-input') doCheckin('checkin-input','checkin-result');
   });
 
-  // ---- BOOT ----
-  fetchStatus(); searchItems();
+  // ===================== BOOT =====================
+  updateHistoryStats();
+  fetchStatus();
+  searchItems();
   setInterval(fetchStatus, 5000);
   setInterval(searchItems, 15000);
 </script>
