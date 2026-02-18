@@ -1,8 +1,8 @@
-# WWT Warehouse Monitor
+# TrackIT Warehouse Monitor
 
 ## Dashboard
 
-**https://averageprogrammer78.github.io/AutoFlagger/**
+**https://averageprogrammer78.github.io/TrackIT/**
 
 No install needed — opens in the browser with live data. Everyone with the link can see everything.
 
@@ -28,7 +28,7 @@ Data refreshes every 5 seconds.
 computer-vision.py  ──writes──▶  alerts-compvis.csv  ──reads──▶  server (Render)
 WWT7.java           ──writes──▶  wwt7.csv             ──reads──▶  server (Render)
                                                                         │
-                                                              autoflagger.onrender.com/api
+                                                              trackit.onrender.com/api
                                                                         │
                                                                    dashboard
 ```
@@ -44,7 +44,7 @@ WWT7.java           ──writes──▶  wwt7.csv             ──reads─�
 
 ## API Endpoints
 
-Base URL: `https://autoflagger.onrender.com/api`
+Base URL: `https://trackit.onrender.com/api`
 
 ```
 GET  /api/status          — full system snapshot (stats, work area, alerts, locations)
@@ -60,7 +60,7 @@ POST /api/checkin         — body: { "partNumber": "M5XDY" }
 
 This section is only for whoever manages the backend.
 
-The API server runs on **Render** at `https://autoflagger.onrender.com`. It reads CSV files written by `WWT7.java` and `computer-vision.py` and serves them to the dashboard.
+The API server runs on **Render** at `https://trackit.onrender.com`. It reads CSV files written by `WWT7.java` and `computer-vision.py` and serves them to the dashboard.
 
 To run locally:
 
