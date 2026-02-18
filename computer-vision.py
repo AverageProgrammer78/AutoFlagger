@@ -10,6 +10,10 @@ import csv
 from datetime import datetime
 import time
 import os
+import requests  # pip install requests
+
+# TrackIT server — must be running locally via: node server.js
+SERVER_URL = 'https://autoflagger.onrender.com'
 
 # ========================================
 # CONFIGURATION
@@ -64,16 +68,27 @@ def is_object_present(current_frame, empty_baseline):
     return total_area > min_area
 
 def write_alert():
-    """Logs missing object alert to CSV file (with cooldown to prevent spam)"""
+    """POSTs a MISSING alert to the TrackIT server (with cooldown to prevent spam)"""
     global last_alert_time
     current_time = time.time()
-    
+
     if (current_time - last_alert_time) > ALERT_COOLDOWN:
-        with open('alerts-compvis.csv', 'a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([datetime.now(), location_name, 'MISSING'])
+        try:
+            res = requests.post(
+                f"{SERVER_URL}/api/alert",
+                json={"location": location_name, "status": "MISSING"},
+                timeout=3
+            )
+            if res.ok:
+                print(f"Alert sent to server for {location_name}")
+            else:
+                print(f"Server rejected alert: {res.text}")
+        except Exception as e:
+            print(f"Could not reach server, writing to CSV directly: {e}")
+            with open("alerts-compvis.csv", "a", newline="") as f:
+                import csv as _csv
+                _csv.writer(f).writerow([datetime.now(), location_name, "MISSING"])
         last_alert_time = current_time
-        print(f"Alert written for {location_name}")
 
 def reset_cooldown():
     """Resets alert system when object returns"""
