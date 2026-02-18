@@ -203,6 +203,6 @@ app.post('/api/checkin', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`\n  WWT Warehouse Monitor running at http://localhost:${PORT}`);
+  console.log(`\n  TrackIT Warehouse Monitor running at http://localhost:${PORT}`);
   console.log(`  Watching CSVs in: ${CSV_DIR}\n`);
 });
